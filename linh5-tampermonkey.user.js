@@ -82,6 +82,13 @@
         #lh5-bag-search-bar select option { background:#1a1a2e;color:#e0d5c1; }
         #lh5-bag-search-bar .lh5-bag-count { font-size:12px;color:#888;white-space:nowrap;flex-shrink:0; }
         .lh5-cell-hidden { display:none!important; }
+        /* ── 交易所金錢搜尋 ── */
+        #lh5-trade-money-wrap { display:flex;align-items:center;gap:6px;margin-bottom:8px; }
+        #lh5-trade-money { flex:1;padding:8px;border-radius:8px;border:1px solid #5a4a26;background:#efe9dc;color:#2a2018;font-size:14px;outline:none; }
+        #lh5-trade-money:focus { border-color:#c8a96e; }
+        #lh5-trade-money::placeholder { color:#999; }
+        .lh5-trade-hidden-money { display:none!important; }
+        .lh5-price-fmt { color:#f5c451; font-weight:bold; font-size:11px; margin-left:4px; }
         #lh5-boss-topbar { display:flex;align-items:center;justify-content:space-between;padding:4px 10px;background:#0e0e1a;border-bottom:1px solid #2a2a3e;font-size:11px;color:#666;flex-shrink:0; }
         #lh5-boss-topbar .lh5-boss-left { display:flex;align-items:center;gap:4px; }
         #lh5-boss-topbar .lh5-boss-dot { width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0; }
@@ -348,12 +355,21 @@
         nameEl.after(bloodBtn);
     }
 
-    // 點擊血盟按鈕 → 先點頭像打開 NPC modal → 再點血盟
+    // 點擊血盟按鈕：直接操作 NPC grid（繞過遊戲事件監聽 isTrusted 限制）
+    // 遊戲用 hidden class 控制 #npc-grid 顯隱，頭像點擊由遊戲內部 state 管理
     bloodBtn.addEventListener('click', () => {
-        const doClickBlood = () => {
-            const npcGrid = document.getElementById('npc-grid');
-            if (!npcGrid) return;
-            const cards = npcGrid.querySelectorAll('.npc-card');
+        const tryOpenNpc = () => {
+            const grid = document.getElementById('npc-grid');
+            if (!grid) return false;
+
+            // 1. 確保可見
+            grid.classList.remove('hidden');
+
+            // 2. 有 NPC 卡片嗎？
+            const cards = grid.querySelectorAll('.npc-card');
+            if (!cards.length) return false;
+
+            // 3. 找血盟 NPC 並點擊
             let target = null;
             for (const c of cards) {
                 const nt = c.querySelector('.nt');
@@ -362,33 +378,178 @@
                 if (nn && nn.textContent.includes('血盟')) { target = c; break; }
             }
             if (target) {
-                target.click();
-                target.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                // NPC card 的 onclick 是直接 assignment：c.onclick = () => openNpc(s.npcs[+c.dataset.i])
+                // 所以直接呼叫 onclick 最準確
+                if (typeof target.onclick === 'function') {
+                    target.onclick.call(target);
+                } else {
+                    target.click();
+                }
+                return true;
             }
+
+            return false;
         };
 
-        const portrait = document.getElementById('t-portrait');
-        if (!portrait) { doClickBlood(); return; }
+        // 嘗試直接開
+        if (tryOpenNpc()) return;
 
-        // 先點頭像
-        portrait.click();
-        portrait.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        // 沒卡片 → NPC grid 還是空的 → 需要先讓遊戲 render NPC
+        // 此時點頭像也沒用（isTrusted=false）
+        // 嘗試透過遊戲內部變數觸發
+        if (typeof currentTab !== 'undefined') {
+            // 如果 currentTab 還不是 'zone'/lobby 狀態，切過去會讓 renderState 重繪
+            // 保留原本值
+        }
 
-        // 頭像點下去後，modal 渲染需要一點時間
-        // 重試 5 次，每次 200ms
+        // 巡邏直到 NPC grid 有內容（最多 30 秒）
         let tries = 0;
         const retry = setInterval(() => {
             tries++;
-            const grid = document.getElementById('npc-grid');
-            if (grid && grid.querySelector('.npc-card')) {
+            if (tryOpenNpc()) {
                 clearInterval(retry);
-                doClickBlood();
-            } else if (tries >= 5) {
+            } else if (tries >= 60) {
                 clearInterval(retry);
-                doClickBlood();
             }
-        }, 200);
+        }, 500);
     });
+
+    // ============================================================
+    //  💰 交易所金錢搜尋（模糊匹配 + 高亮）
+    // ============================================================
+    const tradeMoneyFeature = (function () {
+        let moneyInput = null;
+        let listObserver = null;
+        let _busy = false;
+
+        // ── 模糊匹配 ──
+        function fuzzyMatchPrice(priceText, query) {
+            const priceNum = parseInt(priceText.replace(/[^\d]/g, ''), 10);
+            if (isNaN(priceNum) || !query) return true;
+            const qNum = parseInt(query.replace(/[^\d]/g, ''), 10);
+            if (isNaN(qNum)) return true;
+            return String(priceNum).includes(String(qNum));
+        }
+
+        // ── 產生價格簡寫: 280 萬 / 1,500 萬 / 1.5 億 ──
+        function formatPriceShort(priceNum) {
+            if (priceNum >= 100000000) {
+                const yi = (priceNum / 100000000).toFixed(1).replace(/\.0$/, '');
+                return yi + ' 億';
+            }
+            if (priceNum >= 10000) {
+                return Math.round(priceNum / 10000).toLocaleString() + ' 萬';
+            }
+            return '';
+        }
+
+        // ── 過濾 + 價格簡寫 ──
+        function applyFilterAndFormat() {
+            if (_busy) return;
+            const list = document.getElementById('trade-list');
+            if (!list) return;
+            const items = list.querySelectorAll(':scope > .shop-item');
+            if (!items.length) return;
+
+            const query = moneyInput ? moneyInput.value.trim() : '';
+
+            _busy = true;
+            items.forEach(el => {
+                const priceEl = el.querySelector('.si-p');
+                if (!priceEl) { el.classList.remove('lh5-trade-hidden-money'); return; }
+
+                // ★ 先移除舊的簡寫 span（否則 textContent 會包含它的數字，導致下一輪數字膨脹）
+                const oldFmt = priceEl.querySelector('.lh5-price-fmt');
+                if (oldFmt) oldFmt.remove();
+
+                // ★ 現在讀 textContent 才是乾淨的
+                const priceText = priceEl.textContent || '';
+
+                // ── 過濾 ──
+                if (!query || fuzzyMatchPrice(priceText, query)) {
+                    el.classList.remove('lh5-trade-hidden-money');
+                } else {
+                    el.classList.add('lh5-trade-hidden-money');
+                }
+
+                // ── 價格簡寫 ──
+                const priceNum = parseInt(priceText.replace(/[^\d]/g, ''), 10);
+                if (!isNaN(priceNum)) {
+                    const fmt = formatPriceShort(priceNum);
+                    if (fmt) {
+                        const span = document.createElement('span');
+                        span.className = 'lh5-price-fmt';
+                        span.textContent = fmt;
+                        span.style.cssText = 'color:#f5c451;font-weight:bold;font-size:11px;margin-left:4px;';
+                        priceEl.appendChild(span);
+                    }
+                }
+            });
+            _busy = false;
+        }
+
+        // ── 注入金錢搜尋 input ──
+        function injectMoneySearch() {
+            const searchInput = document.getElementById('trade-search');
+            if (!searchInput) return false;
+            if (document.getElementById('lh5-trade-money')) return true;
+
+            const wrap = document.createElement('div');
+            wrap.id = 'lh5-trade-money-wrap';
+            wrap.innerHTML = '<span style="flex-shrink:0;color:#f5c451;font-weight:bold">💰</span>';
+            const inp = document.createElement('input');
+            inp.id = 'lh5-trade-money';
+            inp.type = 'text';
+            inp.placeholder = '💰 金額模糊搜尋（如 800 → 找到 2,800,000）';
+            wrap.appendChild(inp);
+
+            searchInput.parentNode.insertBefore(wrap, searchInput.nextSibling);
+            moneyInput = inp;
+
+            inp.addEventListener('input', () => { applyFilterAndFormat(); });
+            return true;
+        }
+
+        // ── Observer（注意：初始 state 也要立刻過濾一次！）──
+        function setupObserver() {
+            const list = document.getElementById('trade-list');
+            if (list) {
+                if (listObserver) listObserver.disconnect();
+                listObserver = new MutationObserver(() => {
+                    if (_busy) return;
+                    // 重新注入 input（如果被清掉）
+                    if (!document.getElementById('lh5-trade-money')) {
+                        moneyInput = null;
+                        injectMoneySearch();
+                    }
+                    applyFilterAndFormat();
+                });
+                listObserver.observe(list, { childList: true });
+            }
+        }
+
+        function tryStart() {
+            const ok = injectMoneySearch();
+            setupObserver();
+            // ★ 立刻過濾 + 價格簡寫（處理 observer 綁定前已存在的項目）
+            applyFilterAndFormat();
+            // ★ 延遲再過濾一次（處理 paintTradeList() 可能正在 async 渲染中）
+            setTimeout(applyFilterAndFormat, 200);
+            setTimeout(applyFilterAndFormat, 800);
+            return true;
+        }
+
+        function disable() {
+            const w = document.getElementById('lh5-trade-money-wrap');
+            if (w) w.parentNode?.removeChild(w);
+            moneyInput = null;
+            if (listObserver) { listObserver.disconnect(); listObserver = null; }
+            document.querySelectorAll('.lh5-trade-hidden-money').forEach(el => el.classList.remove('lh5-trade-hidden-money'));
+            document.querySelectorAll('.lh5-price-fmt').forEach(el => el.remove());
+        }
+
+        return { tryStart, disable };
+    })();
 
     // ============================================================
     //  🔧 開關控制
@@ -398,6 +559,9 @@
         if (k === 'bagSearch') { if (en) bagFeature.tryStart(); else bagFeature.disable(); }
     }
     function initFeatures() { const s = loadSettings(); SETTINGS_DEF.forEach(d => applyFeature(d.key, s[d.key])); }
+
+    // 交易所金錢搜尋（常駐，不進設定面板）
+    setTimeout(() => tradeMoneyFeature.tryStart(), 1000);
 
     // ============================================================
     //  ⚙ 齒輪掛載（topbar gold-box 右邊）
@@ -438,7 +602,13 @@
             const s = loadSettings();
             if (s.bossPinAlive) { bossFeature.disable(); bossFeature.tryStart(); }
             if (s.bagSearch) { bagFeature.disable(); bagFeature.tryStart(); }
+            tradeMoneyFeature.tryStart();
         }
-    }, 800);
+
+        // 交易所金錢搜尋：檢查是否需要重新注入（當 trade-search 出現但金錢 input 不存在時）
+        if (document.getElementById('trade-search') && !document.getElementById('lh5-trade-money')) {
+            tradeMoneyFeature.tryStart();
+        }
+    }, 400);
 
 })();
