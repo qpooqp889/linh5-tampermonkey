@@ -1,0 +1,31 @@
+# === 二進位/編譯產物 ===
+*.so
+*.dll
+*.exe
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.ico
+*.zip
+*.7z
+*.tar.gz
+globalgamemanagers
+
+# === 暫存/快取 ===
+*.pyc
+__pycache__/
+.DS_Store
+Thumbs.db
+
+# === 遊戲即時狀態（變動太快且無保留價值） ===
+wb_*.json
+*.png
+game_screen_*
+login_screen_*
+
+# === 工程暫存 ===
+temp/
+tmp/
+*.log
