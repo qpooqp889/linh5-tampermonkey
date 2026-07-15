@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      1.1.3
+// @version      1.1.4
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -90,6 +90,7 @@
         .lh5-star.pinned { color:#fbbf24; }
         .lh5-star:not(.pinned) { color:#444; }
         .wb-r1 { display:flex;align-items:center; }
+        .lh5-boss-countdown { color:#fbbf24; font-weight:bold; margin-right:6px; }
         #lh5-blood-btn { display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;cursor:pointer;border-radius:50%;background:rgba(180,40,40,0.2);font-size:16px;color:#e04040;transition:background .2s,transform .2s;user-select:none;margin-left:4px;flex-shrink:0;vertical-align:middle; }
         #lh5-blood-btn:hover { background:rgba(180,40,40,0.45); transform:scale(1.15); }
     `);
@@ -182,8 +183,56 @@
             if (p.firstChild?.id === 'lh5-boss-topbar' && document.contains(p.firstChild)) { bar = p.firstChild; return; }
             bar = null;
             const b = document.createElement('div'); b.id = 'lh5-boss-topbar';
-            b.innerHTML = `<span class="lh5-boss-left"><span class="lh5-boss-dot"></span><span>TOP</span></span><span>⏱ <span class="lh5-boss-time">--:--:--</span></span>`;
+            b.innerHTML = `<span class="lh5-boss-left"><span class="lh5-boss-dot"></span><span>TOP</span></span><span><span class="lh5-boss-countdown"></span> ⏱ <span class="lh5-boss-time">--:--:--</span></span>`;
             p.insertBefore(b, p.firstChild); bar = b;
+        }
+
+        let countdownTimer = null;
+        function startCountdown(p) {
+            if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+            countdownTimer = setInterval(() => {
+                const cde = bar?.querySelector('.lh5-boss-countdown');
+                if (!cde || !document.contains(bar)) { clearInterval(countdownTimer); countdownTimer = null; return; }
+                const now = new Date();
+                let nearest = null, nearestSec = Infinity;
+                const cards = p.querySelectorAll(':scope > .wb-card');
+                cards.forEach(c => {
+                    const sub = c.querySelector('.wb-sub');
+                    if (!sub) return;
+                    const txt = sub.textContent;
+                    // 存活中 → 跳過
+                    if (txt.includes('存活中')) return;
+                    // 已被擊敗，HH:00 重生 或 已被擊敗，HH:MM 重生
+                    const m = txt.match(/(\d{1,2}):(\d{2})/);
+                    if (!m) return;
+                    let h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
+                    // 如果小時 < 目前小時 → 明天
+                    let target = new Date();
+                    target.setHours(h, mi, 0, 0);
+                    if (target <= now) target.setDate(target.getDate() + 1);
+                    const sec = Math.floor((target - now) / 1000);
+                    if (sec < nearestSec) { nearestSec = sec; nearest = { name: c.querySelector('.wb-tag')?.nextSibling?.textContent?.trim() || '', target }; }
+                });
+                if (nearest && nearestSec >= 0 && nearestSec < 86400) {
+                    const hh = Math.floor(nearestSec / 3600);
+                    const mm = Math.floor((nearestSec % 3600) / 60);
+                    const ss = nearestSec % 60;
+                    const t = String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+                    cde.textContent = '⏳ '+nearest.name+' '+t;
+                } else {
+                    cde.textContent = '';
+                }
+                // 同時更新時間
+                const te = bar.querySelector('.lh5-boss-time');
+                if (te) {
+                    const t = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0');
+                    te.textContent = t;
+                }
+            }, 1000);
+        }
+
+        function stopCountdown() {
+            if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
         }
 
         function tryStart() {
@@ -191,7 +240,7 @@
             if (!p) return false;
             const cards = p.querySelectorAll(':scope > .wb-card');
             if (cards.length === 0) return false;
-            ensureBar(p); sortP(p);
+            ensureBar(p); sortP(p); startCountdown(p);
             if (obs) { obs.disconnect(); obs = null; }
             obs = new MutationObserver(() => sortP(p));
             obs.observe(p, { childList: true, subtree: false });
@@ -199,6 +248,7 @@
         }
 
         function disable() {
+            stopCountdown();
             if (obs) { obs.disconnect(); obs = null; }
             if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
             bar = null;
