@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
+// @name         LinH5 工具箱 - 世界王置頂 & 背包檢索 & 名稱顯示
 // @namespace    https://linh5web.win/
-// @version      1.1
-// @description  設定面板：世界王存活自動置頂 + 背包物品檢索（按名稱搜尋 / 按強化 +4~+10 篩選）
+// @version      1.2
+// @description  設定面板：世界王存活自動置頂 + 背包物品檢索（搜尋/強化篩選）+ 道具名稱顯示
 // @author       QClaw
 // @match        https://linh5web.win/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=linh5web.win
@@ -22,7 +22,11 @@
     const DEFAULTS = {
         bossPinAlive: true,   // 世界王自動置頂
         bagSearch: true,      // 背包檢索（預設開啟）
+        showBagNames: true,   // 道具名稱顯示（預設開啟）
     };
+
+    // 跨功能共享的背包篩選狀態（讓名稱顯示可配合高亮關鍵字）
+    const bagFilter = { text: '', enchant: '' };
 
     function loadSettings() {
         try {
@@ -224,18 +228,36 @@
         .lh5-cell-hidden {
             display: none !important;
         }
+
+        /* ── 道具名稱標籤 ── */
+        .lh5-cell-label {
+            display: block;
+            text-align: center;
+            font-size: 9px;
+            color: #aaa;
+            line-height: 1.2;
+            margin-top: 2px;
+            word-break: break-all;
+            max-width: 72px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .lh5-cell-label .lh5-hl {
+            color: #ffd700;
+            font-weight: bold;
+        }
     `);
 
     // ============================================================
     //  3. 建立 DOM 元素
     // ============================================================
-    // 3a. 齒輪按鈕
     const gearBtn = document.createElement('div');
     gearBtn.id = 'lh5-settings-btn';
     gearBtn.textContent = '⚙';
     gearBtn.title = '設定';
 
-    // 3b. Modal
+    // Modal
     const overlay = document.createElement('div');
     overlay.id = 'lh5-modal-overlay';
 
@@ -247,10 +269,8 @@
         <div id="lh5-modal-close-hint">✕ 點擊空白關閉</div>
     `;
     overlay.appendChild(modal);
-
     document.body.appendChild(overlay);
 
-    // ── 打開/關閉 ──
     gearBtn.addEventListener('click', () => {
         renderSettings();
         overlay.classList.add('open');
@@ -273,6 +293,11 @@
             label: '背包物品檢索',
             desc: '在背包上方新增搜尋框與 +4~+10 強化篩選下拉',
         },
+        {
+            key: 'showBagNames',
+            label: '道具名稱顯示',
+            desc: '在背包格子下方顯示道具名稱，配合搜尋關鍵字高亮',
+        },
     ];
 
     function renderSettings() {
@@ -294,7 +319,6 @@
             `;
         }).join('');
 
-        // 綁事件
         body.querySelectorAll('.lh5-toggle input[type="checkbox"]').forEach(cb => {
             cb.addEventListener('change', () => {
                 const key = cb.dataset.key;
@@ -307,11 +331,22 @@
     }
 
     // ============================================================
-    //  5. 功能邏輯
+    //  5. 工具函式
+    // ============================================================
+    /** 從 img src 解析道具中文名稱 */
+    function getItemNameFromImg(img) {
+        if (!img || !img.src) return '';
+        const parts = decodeURIComponent(img.src).split('/');
+        const file = parts[parts.length - 1];
+        return file.replace(/\.\w+$/, '');
+    }
+
+    // ============================================================
+    //  6. 功能邏輯
     // ============================================================
     const features = {};
 
-    // ── 5a. 世界王自動置頂 ──
+    // ── 6a. 世界王自動置頂 ──
     features.bossPinAlive = {
         observer: null,
         start() {
@@ -340,7 +375,6 @@
         sortPanel(panel) {
             const cards = Array.from(panel.querySelectorAll(':scope > .wb-card'));
             if (cards.length < 2) return;
-
             cards.sort((a, b) => {
                 const subA = a.querySelector('.wb-sub');
                 const subB = b.querySelector('.wb-sub');
@@ -350,7 +384,6 @@
                 if (!aliveA && aliveB) return 1;
                 return 0;
             });
-
             let needsReorder = false;
             const existing = Array.from(panel.children);
             for (let i = 0; i < cards.length; i++) {
@@ -362,77 +395,54 @@
         },
     };
 
-    // ── 5b. 背包物品檢索 ──
+    // ── 6b. 背包物品檢索 ──
     features.bagSearch = {
         panelObserver: null,
         gridObserver: null,
         searchBar: null,
-        filterText: '',
-        filterEnchant: '',
 
-        start() {
-            this._observePanel();
-        },
+        start() { this._observePanel(); },
         stop() {
             this._removeUI();
             if (this.panelObserver) { this.panelObserver.disconnect(); this.panelObserver = null; }
             if (this.gridObserver) { this.gridObserver.disconnect(); this.gridObserver = null; }
         },
-
         _removeUI() {
             if (this.searchBar && this.searchBar.parentNode) {
                 this.searchBar.parentNode.removeChild(this.searchBar);
             }
             this.searchBar = null;
-            // 解除所有 hidden class
             document.querySelectorAll('.lh5-cell-hidden').forEach(el => el.classList.remove('lh5-cell-hidden'));
         },
-
         _observePanel() {
             const panel = document.getElementById('panel-scroll');
-            if (!panel) {
-                setTimeout(() => this.start(), 500);
-                return;
-            }
-
-            // 先檢查目前是否已有 grid
+            if (!panel) { setTimeout(() => this.start(), 500); return; }
             const grid = panel.querySelector(':scope > .grid');
-            if (grid) {
-                this._injectUI(grid);
-            }
-
-            // 監聽 panel-scroll 的子元素變化（切分頁時 grid 出現/消失）
+            if (grid) this._injectUI(grid);
             if (this.panelObserver) this.panelObserver.disconnect();
             this.panelObserver = new MutationObserver(() => {
                 const g = panel.querySelector(':scope > .grid');
-                if (g && !this.searchBar) {
-                    this._injectUI(g);
-                } else if (!g && this.searchBar) {
-                    this._removeUI();
-                }
+                if (g && !this.searchBar) this._injectUI(g);
+                else if (!g && this.searchBar) this._removeUI();
             });
             this.panelObserver.observe(panel, { childList: true });
         },
-
         _injectUI(grid) {
-            if (this.searchBar) return; // 已經存在
-
-            // 建立檢索列
+            if (this.searchBar) return;
             const bar = document.createElement('div');
             bar.id = 'lh5-bag-search-bar';
 
             const input = document.createElement('input');
             input.type = 'text';
             input.placeholder = '🔍 搜尋道具名稱…';
-            input.value = this.filterText;
+            input.value = bagFilter.text;
 
             const select = document.createElement('select');
-            const opts = ['全部', '+4', '+5', '+6', '+7', '+8', '+9', '+10'];
-            opts.forEach(v => {
+            ['全部', '+4', '+5', '+6', '+7', '+8', '+9', '+10'].forEach(v => {
                 const opt = document.createElement('option');
                 opt.value = v === '全部' ? '' : v;
                 opt.textContent = v;
-                if (opt.value === this.filterEnchant) opt.selected = true;
+                if (opt.value === bagFilter.enchant) opt.selected = true;
                 select.appendChild(opt);
             });
 
@@ -442,82 +452,136 @@
             bar.appendChild(input);
             bar.appendChild(select);
             bar.appendChild(countSpan);
-
-            // 插入到 grid 前面
             grid.parentNode.insertBefore(bar, grid);
-
             this.searchBar = bar;
 
-            // 綁事件
             const doFilter = () => {
-                this.filterText = input.value.trim();
-                this.filterEnchant = select.value;
+                bagFilter.text = input.value.trim();
+                bagFilter.enchant = select.value;
                 this._applyFilter(grid, countSpan);
+                // 通知名稱顯示功能更新高亮
+                if (features.showBagNames && features.showBagNames.grid && document.contains(grid)) {
+                    features.showBagNames._updateLabels(grid);
+                }
             };
 
             input.addEventListener('input', doFilter);
             select.addEventListener('change', doFilter);
 
-            // 監聽 grid 內更新（遊戲每秒重繪格子內容）
             if (this.gridObserver) this.gridObserver.disconnect();
             this.gridObserver = new MutationObserver(() => {
-                if (document.contains(grid)) {
-                    doFilter();
-                }
+                if (document.contains(grid)) doFilter();
             });
             this.gridObserver.observe(grid, { childList: true });
 
-            // 首次過濾
             doFilter();
         },
-
         _applyFilter(grid, countSpan) {
             const cells = grid.querySelectorAll(':scope > .cell');
             let visibleCount = 0;
-
             cells.forEach(cell => {
                 let show = true;
-
-                // 1. 名稱過濾
-                if (this.filterText) {
-                    const img = cell.querySelector('img');
-                    let itemName = '';
-                    if (img && img.src) {
-                        // assets/icons/weapons/彎刀.png → 彎刀
-                        const parts = decodeURIComponent(img.src).split('/');
-                        const file = parts[parts.length - 1];
-                        itemName = file.replace(/\.\w+$/, '');
-                    }
-                    if (!itemName.includes(this.filterText)) {
-                        show = false;
-                    }
+                if (bagFilter.text) {
+                    const name = getItemNameFromImg(cell.querySelector('img'));
+                    if (!name.includes(bagFilter.text)) show = false;
                 }
-
-                // 2. 強化值過濾
-                if (show && this.filterEnchant) {
+                if (show && bagFilter.enchant) {
                     const badge = cell.querySelector('.enbadge');
                     const badgeText = badge ? badge.textContent.trim() : '';
-                    if (badgeText !== this.filterEnchant) {
-                        show = false;
+                    if (badgeText !== bagFilter.enchant) show = false;
+                }
+                if (show) { cell.classList.remove('lh5-cell-hidden'); visibleCount++; }
+                else { cell.classList.add('lh5-cell-hidden'); }
+            });
+            if (countSpan) countSpan.textContent = `顯示 ${visibleCount} / ${cells.length}`;
+        },
+    };
+
+    // ── 6c. 道具名稱顯示 ──
+    features.showBagNames = {
+        panelObserver: null,
+        gridObserver: null,
+        grid: null,
+
+        start() { this._observePanel(); },
+        stop() {
+            this._removeLabels();
+            if (this.panelObserver) { this.panelObserver.disconnect(); this.panelObserver = null; }
+            if (this.gridObserver) { this.gridObserver.disconnect(); this.gridObserver = null; }
+            this.grid = null;
+        },
+        _removeLabels() {
+            document.querySelectorAll('.lh5-cell-label').forEach(el => el.remove());
+        },
+        _observePanel() {
+            const panel = document.getElementById('panel-scroll');
+            if (!panel) { setTimeout(() => this.start(), 500); return; }
+            const grid = panel.querySelector(':scope > .grid');
+            if (grid) { this.grid = grid; this._injectLabels(grid); }
+            if (this.panelObserver) this.panelObserver.disconnect();
+            this.panelObserver = new MutationObserver(() => {
+                const g = panel.querySelector(':scope > .grid');
+                if (g && !this.grid) { this.grid = g; this._injectLabels(g); }
+                else if (!g && this.grid) { this._removeLabels(); this.grid = null; }
+            });
+            this.panelObserver.observe(panel, { childList: true });
+        },
+        _injectLabels(grid) {
+            this.grid = grid;
+
+            // 初始注入
+            this._updateLabels(grid);
+
+            // 監聽 grid 子元素增減（道具刷新）
+            if (this.gridObserver) this.gridObserver.disconnect();
+            this.gridObserver = new MutationObserver(() => {
+                if (document.contains(grid)) this._updateLabels(grid);
+            });
+            this.gridObserver.observe(grid, { childList: true });
+        },
+        _updateLabels(grid) {
+            if (!grid) return;
+            const cells = grid.querySelectorAll(':scope > .cell');
+            cells.forEach(cell => {
+                const img = cell.querySelector('img');
+                if (!img) return;
+                const name = getItemNameFromImg(img);
+                if (!name) return;
+
+                // 找或建立 label
+                let label = cell.querySelector('.lh5-cell-label');
+                if (!label) {
+                    label = document.createElement('span');
+                    label.className = 'lh5-cell-label';
+                    // 插在 img 後面（或 span.cnt 後面）
+                    const cnt = cell.querySelector('.cnt');
+                    if (cnt && cnt.nextSibling) {
+                        cnt.after(label);
+                    } else if (cnt) {
+                        cnt.after(label);
+                    } else if (img.nextSibling) {
+                        img.after(label);
+                    } else {
+                        cell.appendChild(label);
                     }
                 }
 
-                if (show) {
-                    cell.classList.remove('lh5-cell-hidden');
-                    visibleCount++;
+                // 高亮關鍵字
+                const kw = bagFilter.text;
+                if (kw && name.includes(kw)) {
+                    const idx = name.indexOf(kw);
+                    label.innerHTML = name.slice(0, idx)
+                        + `<span class="lh5-hl">${name.slice(idx, idx + kw.length)}</span>`
+                        + name.slice(idx + kw.length);
                 } else {
-                    cell.classList.add('lh5-cell-hidden');
+                    label.textContent = name;
                 }
             });
-
-            if (countSpan) {
-                countSpan.textContent = `顯示 ${visibleCount} / ${cells.length}`;
-            }
-        }
+        },
     };
 
     // ============================================================
-    //  6. 啟動/關閉功能
+    //  7. 啟動/關閉功能
     // ============================================================
     function applyFeature(key, enabled) {
         const feat = features[key];
@@ -534,7 +598,7 @@
     }
 
     // ============================================================
-    //  7. 掛載齒輪按鈕到 topbar
+    //  8. 掛載齒輪按鈕到 topbar
     // ============================================================
     function mountGear() {
         const topbar = document.getElementById('topbar');
@@ -543,24 +607,19 @@
             return;
         }
         const goldBox = topbar.querySelector('.gold-box');
-        if (goldBox) {
-            goldBox.after(gearBtn);
-        } else {
-            topbar.appendChild(gearBtn);
-        }
+        if (goldBox) goldBox.after(gearBtn);
+        else topbar.appendChild(gearBtn);
     }
 
     // ============================================================
-    //  8. 啟動
+    //  9. 啟動
     // ============================================================
     mountGear();
     initFeatures();
 
-    // 每 3 秒檢查：確保 DOM 存在、功能正常
+    // 每 3 秒檢查 DOM 完整性
     setInterval(() => {
-        if (!document.getElementById('lh5-settings-btn')) {
-            mountGear();
-        }
+        if (!document.getElementById('lh5-settings-btn')) mountGear();
         const s = loadSettings();
         if (s.bossPinAlive && (!features.bossPinAlive.observer || !document.getElementById('panel-scroll'))) {
             features.bossPinAlive.start();
@@ -568,9 +627,12 @@
         if (s.bagSearch) {
             const panel = document.getElementById('panel-scroll');
             const grid = panel && panel.querySelector(':scope > .grid');
-            if (grid && !features.bagSearch.searchBar) {
-                features.bagSearch.start();
-            }
+            if (grid && !features.bagSearch.searchBar) features.bagSearch.start();
+        }
+        if (s.showBagNames) {
+            const panel = document.getElementById('panel-scroll');
+            const grid = panel && panel.querySelector(':scope > .grid');
+            if (grid && !features.showBagNames.grid) features.showBagNames.start();
         }
     }, 3000);
 
