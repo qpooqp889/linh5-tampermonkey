@@ -81,12 +81,12 @@
         }
         .lh5-cell-label .lh5-hl { color: #ffd700; font-weight: bold; }
 
-        .grid > .cell {
+        #panel-scroll > .grid > .cell {
             display: inline-flex !important;
             flex-direction: column !important;
             align-items: center !important;
         }
-        .grid > .cell > .cnt { order: 20; }
+        #panel-scroll > .grid > .cell > .cnt { order: 20; }
 
         /* ── 世界王 TOP 狀態列 ── */
         #lh5-boss-topbar {
@@ -279,18 +279,17 @@
             const panel = document.getElementById('panel-scroll');
             if (!panel) { setTimeout(start, 500); return; }
 
-            // 檢查 observer 是否還有效（同一個 panel）
-            const obsValid = observer && observer.root === panel;
-            // 狀態列是否存在於 DOM
+            // 狀態列存在 + observer 存在 + 已有星星 → 代表功能正常
+            const starOk = panel.querySelector(':scope > .wb-card')?.querySelector('.lh5-star');
             const barOk = statusBar && document.contains(statusBar);
 
-            if (obsValid && barOk) return;
+            if (observer && barOk && starOk) return;
 
             // 重建
             if (observer) { observer.disconnect(); observer = null; }
             statusBar = null;
             ensureStatusBar(panel);
-            originalOrder = null;  // panel 可能已重建，重新抓順序
+            originalOrder = null;
             sortPanel(panel);
             observer = new MutationObserver(() => { sortPanel(panel); });
             observer.observe(panel, { childList: true, subtree: false });
@@ -442,12 +441,14 @@
         if (!panel) return;
 
         const wbCards = panel.querySelectorAll(':scope > .wb-card');
+        // 有世界王卡片才啟用世界王功能
+        // start() 內部會自行判斷是否需要重建
         if (wbCards.length > 0) bossFeature.start();
 
         const grid = panel.querySelector(':scope > .grid');
         if (grid) {
             const bar = document.getElementById('lh5-bag-search-bar');
-            if (!bar) bagFeature.start();
+            if (!bar || !document.contains(bar)) bagFeature.start();
         }
     }, 3000);
 
