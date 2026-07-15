@@ -176,12 +176,15 @@
             if (!originalOrder || !originalOrder.length) return;
             const map = {};
             panel.querySelectorAll(':scope > .wb-card').forEach(el => { map[el.dataset.boss] = el; });
-            const existing = Array.from(panel.children);
+            // 略過非 .wb-card（如 topbar）
+            const existing = Array.from(panel.children).filter(el => el.classList.contains('wb-card'));
             let changed = false;
             originalOrder.forEach((bossId, i) => {
                 if (map[bossId] && existing[i] !== map[bossId]) changed = true;
             });
             if (changed) {
+                // 保留 topbar 在第一位
+                const topbar = panel.querySelector('#lh5-boss-topbar');
                 originalOrder.forEach(bossId => { if (map[bossId]) panel.appendChild(map[bossId]); });
             }
         }
@@ -240,7 +243,8 @@
                 return ia - ib;
             });
 
-            const existing = Array.from(panel.children);
+            // 略過非 .wb-card（如 topbar）
+            const existing = Array.from(panel.children).filter(el => el.classList.contains('wb-card'));
             let needs = false;
             for (let i = 0; i < sorted.length; i++) {
                 if (sorted[i] !== existing[i]) { needs = true; break; }
@@ -258,10 +262,14 @@
         }
 
         function ensureStatusBar(panel) {
-            if (statusBar && document.contains(statusBar)) return;
+            // 檢查: bar 存在且是 panel 的第一個子元素
+            const first = panel.firstChild;
+            if (first && first.id === 'lh5-boss-topbar' && document.contains(first)) {
+                statusBar = first;
+                return;
+            }
             if (statusBar) statusBar = null;
 
-            // 插在 panel 最前面
             const bar = document.createElement('div');
             bar.id = 'lh5-boss-topbar';
             bar.innerHTML = `
@@ -271,7 +279,7 @@
                 </span>
                 <span>⏱ <span class="lh5-boss-time">--:--:--</span></span>
             `;
-            panel.parentNode.insertBefore(bar, panel);
+            panel.insertBefore(bar, panel.firstChild);
             statusBar = bar;
         }
 
