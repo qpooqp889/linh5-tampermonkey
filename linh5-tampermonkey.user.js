@@ -90,6 +90,8 @@
         .lh5-star.pinned { color:#fbbf24; }
         .lh5-star:not(.pinned) { color:#444; }
         .wb-r1 { display:flex;align-items:center; }
+        #lh5-blood-btn { display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;cursor:pointer;border-radius:50%;background:rgba(180,40,40,0.2);font-size:16px;color:#e04040;transition:background .2s,transform .2s;user-select:none;margin-left:4px;flex-shrink:0;vertical-align:middle; }
+        #lh5-blood-btn:hover { background:rgba(180,40,40,0.45); transform:scale(1.15); }
     `);
 
     // ============================================================
@@ -280,6 +282,43 @@
     })();
 
     // ============================================================
+    //  🩸 血盟按鈕功能
+    // ============================================================
+    const bloodBtn = document.createElement('div');
+    bloodBtn.id = 'lh5-blood-btn';
+    bloodBtn.textContent = '🧑';
+    bloodBtn.title = '血盟';
+
+    function mountBloodBtn() {
+        const tb = document.getElementById('topbar');
+        if (!tb) { setTimeout(mountBloodBtn, 300); return; }
+        const nameEl = document.getElementById('t-name');
+        if (!nameEl) { setTimeout(mountBloodBtn, 300); return; }
+        if (nameEl.parentNode.querySelector('#lh5-blood-btn')) return; // 已存在
+        nameEl.after(bloodBtn);
+    }
+
+    // 點擊血盟按鈕 → 找到血盟NPC並觸發
+    bloodBtn.addEventListener('click', () => {
+        const npcGrid = document.getElementById('npc-grid');
+        if (!npcGrid) return;
+        // 找血盟NPC: nn 包含「血盟」或 nt 包含「血盟」
+        const cards = npcGrid.querySelectorAll('.npc-card');
+        let target = null;
+        for (const c of cards) {
+            const nt = c.querySelector('.nt');
+            if (nt && nt.textContent.includes('血盟')) { target = c; break; }
+            const nn = c.querySelector('.nn');
+            if (nn && nn.textContent.includes('血盟')) { target = c; break; }
+        }
+        if (target) {
+            target.click();
+            // 也試試程式化事件
+            target.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        }
+    });
+
+    // ============================================================
     //  🔧 開關控制
     // ============================================================
     function applyFeature(k, en) {
@@ -302,6 +341,7 @@
     //  🏁 初始化
     // ============================================================
     mountGear();
+    mountBloodBtn();
     initFeatures();
 
     // ============================================================
@@ -318,8 +358,9 @@
         if (panel !== _lastPanelNode) {
             _lastPanelNode = panel;
 
-            // 確認齒輪
+            // 確認齒輪 + 血盟按鈕
             if (!document.getElementById('lh5-settings-btn')) mountGear();
+            if (!document.getElementById('lh5-blood-btn')) mountBloodBtn();
 
             // 重啟功能
             const s = loadSettings();
