@@ -348,24 +348,46 @@
         nameEl.after(bloodBtn);
     }
 
-    // 點擊血盟按鈕 → 找到血盟NPC並觸發
+    // 點擊血盟按鈕 → 先點頭像打開 NPC modal → 再點血盟
     bloodBtn.addEventListener('click', () => {
-        const npcGrid = document.getElementById('npc-grid');
-        if (!npcGrid) return;
-        // 找血盟NPC: nn 包含「血盟」或 nt 包含「血盟」
-        const cards = npcGrid.querySelectorAll('.npc-card');
-        let target = null;
-        for (const c of cards) {
-            const nt = c.querySelector('.nt');
-            if (nt && nt.textContent.includes('血盟')) { target = c; break; }
-            const nn = c.querySelector('.nn');
-            if (nn && nn.textContent.includes('血盟')) { target = c; break; }
-        }
-        if (target) {
-            target.click();
-            // 也試試程式化事件
-            target.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        }
+        const doClickBlood = () => {
+            const npcGrid = document.getElementById('npc-grid');
+            if (!npcGrid) return;
+            const cards = npcGrid.querySelectorAll('.npc-card');
+            let target = null;
+            for (const c of cards) {
+                const nt = c.querySelector('.nt');
+                if (nt && nt.textContent.includes('血盟')) { target = c; break; }
+                const nn = c.querySelector('.nn');
+                if (nn && nn.textContent.includes('血盟')) { target = c; break; }
+            }
+            if (target) {
+                target.click();
+                target.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            }
+        };
+
+        const portrait = document.getElementById('t-portrait');
+        if (!portrait) { doClickBlood(); return; }
+
+        // 先點頭像
+        portrait.click();
+        portrait.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+        // 頭像點下去後，modal 渲染需要一點時間
+        // 重試 5 次，每次 200ms
+        let tries = 0;
+        const retry = setInterval(() => {
+            tries++;
+            const grid = document.getElementById('npc-grid');
+            if (grid && grid.querySelector('.npc-card')) {
+                clearInterval(retry);
+                doClickBlood();
+            } else if (tries >= 5) {
+                clearInterval(retry);
+                doClickBlood();
+            }
+        }, 200);
     });
 
     // ============================================================
