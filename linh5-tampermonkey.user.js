@@ -312,55 +312,48 @@
         function applyFilter(grid) {
             const cells = grid.querySelectorAll(':scope > .cell');
             let visible = 0;
-            let hasActiveFilter = false;
+            const kw = bagFilter.text;
 
-            cells.forEach(cell => {
-                let show = true;
-                if (bagFilter.text) {
-                    hasActiveFilter = true;
-                    const name = getItemNameFromImg(cell.querySelector('img'));
-                    if (!name.includes(bagFilter.text)) show = false;
-                }
-                if (show && bagFilter.enchant) {
-                    hasActiveFilter = true;
-                    const badge = cell.querySelector('.enbadge');
-                    const t = badge ? badge.textContent.trim() : '';
-                    if (t !== bagFilter.enchant) show = false;
-                }
-                if (show) { cell.classList.remove('lh5-cell-hidden'); visible++; }
-                else { cell.classList.add('lh5-cell-hidden'); }
-            });
-
-            const cs = searchBar && searchBar.querySelector('.lh5-bag-count');
-            if (cs) cs.textContent = hasActiveFilter ? `顯示 ${visible} / ${cells.length}` : '';
-
-            updateLabels(grid);
-        }
-
-        function updateLabels(grid) {
-            if (!grid) return;
-            const cells = grid.querySelectorAll(':scope > .cell');
             cells.forEach(cell => {
                 const img = cell.querySelector('img');
-                if (!img) return;
                 const name = getItemNameFromImg(img);
-                if (!name) return;
-                let label = cell.querySelector('.lh5-cell-label');
-                if (!label) {
-                    label = document.createElement('span');
-                    label.className = 'lh5-cell-label';
-                    img.after(label);
+
+                let show = true;
+                let keywordMatches = false;
+
+                if (kw) {
+                    keywordMatches = name && name.includes(kw);
+                    if (!keywordMatches) show = false;     // 無關鍵字匹配 → 隱藏
                 }
-                const kw = bagFilter.text;
-                if (kw && name.includes(kw)) {
+
+                if (show && bagFilter.enchant) {
+                    const badge = cell.querySelector('.enbadge');
+                    const badgeT = badge ? badge.textContent.trim() : '';
+                    if (badgeT !== bagFilter.enchant) show = false;
+                }
+
+                if (show) { cell.classList.remove('lh5-cell-hidden'); visible++; }
+                else { cell.classList.add('lh5-cell-hidden'); }
+
+                // 名稱標籤：只有關鍵字匹配時才顯示
+                let label = cell.querySelector('.lh5-cell-label');
+                if (kw && keywordMatches && img) {
+                    if (!label) {
+                        label = document.createElement('span');
+                        label.className = 'lh5-cell-label';
+                        img.after(label);
+                    }
                     const idx = name.indexOf(kw);
                     label.innerHTML = name.slice(0, idx)
                         + `<span class="lh5-hl">${escapeHtml(name.slice(idx, idx + kw.length))}</span>`
                         + escapeHtml(name.slice(idx + kw.length));
                 } else {
-                    label.textContent = name;
+                    if (label) label.remove();
                 }
             });
+
+            const cs = searchBar && searchBar.querySelector('.lh5-bag-count');
+            if (cs) cs.textContent = kw || bagFilter.enchant ? `顯示 ${visible} / ${cells.length}` : '';
         }
 
         function escapeHtml(s) {
