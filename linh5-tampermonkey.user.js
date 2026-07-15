@@ -68,7 +68,7 @@
         .lh5-cell-label {
             display: block;
             text-align: center;
-            font-size: 18px;
+            font-size: 10pt;
             color: #ccc;
             line-height: 1.2;
             margin-top: 2px;
@@ -261,7 +261,9 @@
         }
 
         function injectUI(grid) {
-            if (searchBar) return;
+            // 偵測檢索欄是否真的存在於 DOM
+            if (searchBar && document.contains(searchBar)) return;
+            searchBar = null;
 
             const bar = document.createElement('div');
             bar.id = 'lh5-bag-search-bar';
@@ -317,7 +319,7 @@
             if (panelObserver) panelObserver.disconnect();
             panelObserver = new MutationObserver(() => {
                 const g = panel.querySelector(':scope > .grid');
-                if (g && !searchBar) injectUI(g);
+                if (g && (!searchBar || !document.contains(searchBar))) injectUI(g);
                 else if (!g && searchBar) removeUI();
             });
             panelObserver.observe(panel, { childList: true });
@@ -344,7 +346,11 @@
 
         // 背包
         const grid = panel.querySelector(':scope > .grid');
-        if (grid) bagFeature.start();
+        if (grid) {
+            // 如果有 grid 但搜尋列不見了，強制重建
+            const bar = document.getElementById('lh5-bag-search-bar');
+            if (!bar) bagFeature.start();
+        }
     }, 3000);
 
 })();
