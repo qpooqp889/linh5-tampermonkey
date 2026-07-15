@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.03
+// @version      2.05
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -85,10 +85,44 @@
         /* ── 交易所金錢搜尋 ── */
         #lh5-trade-money-wrap { display:flex;align-items:center;gap:6px;margin-bottom:8px; }
         #lh5-trade-money { flex:1;padding:8px;border-radius:8px;border:1px solid #5a4a26;background:#efe9dc;color:#2a2018;font-size:14px;outline:none; }
+        #lh5-trade-money-clear { cursor:pointer;flex-shrink:0;font-size:16px;color:#888;padding:4px 6px;border-radius:4px;line-height:1;user-select:none;transition:background .15s,color .15s; }
+        #lh5-trade-money-clear:hover { background:#c0392b;color:#fff; }
         #lh5-trade-money:focus { border-color:#c8a96e; }
         #lh5-trade-money::placeholder { color:#999; }
         .lh5-trade-hidden-money { display:none!important; }
         .lh5-price-fmt { color:#f5c451; font-weight:bold; font-size:11px; margin-left:4px; }
+
+        /* ── 戰鬥畫面縮放 [+] ── */
+        #lh5-collapse-btn {
+            position: absolute; top: 4px; right: 4px;
+            z-index: 9999;
+            width: 26px; height: 26px;
+            cursor: pointer; user-select: none;
+            background: rgba(0,0,0,0.45);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; color: #ccc; line-height: 1;
+            transition: background .2s, color .2s;
+        }
+        #lh5-collapse-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+        #lh5-collapse-btn.collapsed { color: #fbbf24; border-color: #fbbf2480; }
+
+        /* 收合狀態（只保留 #marquee-bar、#player-side、#btn-stop、#btn-lobby） */
+        .lh5-battle-collapsed #monster-slots,
+        .lh5-battle-collapsed #boss-area,
+        .lh5-battle-collapsed #boss-ctrl,
+        .lh5-battle-collapsed #npc-grid,
+        .lh5-battle-collapsed #lobby-ui,
+        .lh5-battle-collapsed #zone-name,
+        .lh5-battle-collapsed #btn-attack,
+        .lh5-battle-collapsed #fx {
+            display: none !important;
+        }
+        /* 收合時 battle 最小化 */
+        .lh5-battle-collapsed#battle {
+            min-height: 100px !important;
+        }
         #lh5-boss-topbar { display:flex;align-items:center;justify-content:space-between;padding:4px 10px;background:#0e0e1a;border-bottom:1px solid #2a2a3e;font-size:11px;color:#666;flex-shrink:0; }
         #lh5-boss-topbar .lh5-boss-left { display:flex;align-items:center;gap:4px; }
         #lh5-boss-topbar .lh5-boss-dot { width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0; }
@@ -122,6 +156,7 @@
         { key: 'bossPinAlive', label: '世界王自動更新置頂', desc: '將「存活中」的世界王自動排到列表最前面' },
         { key: 'bagSearch', label: '背包物品檢索', desc: '在背包上方新增搜尋框與 +4~+10 強化篩選下拉' },
         { key: 'tradeMoneySearch', label: '交易所金錢搜尋', desc: '在交易所新增金額模糊搜尋 + 價格簡寫' },
+        { key: 'battleCollapse', label: '戰鬥畫面縮放', desc: '右上角 [+] 按鈕隱藏/顯示怪物與戰鬥資訊' },
     ];
     function renderSettings() {
         const s = loadSettings();
@@ -347,6 +382,7 @@
         let moneyInput = null;
         let listObserver = null;
         let _busy = false;
+        let _savedQuery = ''; // 保留輸入值，切分頁重建時 restore
 
         // ── 模糊匹配 ──
         function fuzzyMatchPrice(priceText, query) {
@@ -422,7 +458,7 @@
 
             const wrap = document.createElement('div');
             wrap.id = 'lh5-trade-money-wrap';
-            wrap.innerHTML = '<span style="flex-shrink:0;color:#f5c451;font-weight:bold">💰</span>';
+            wrap.innerHTML = '<span style="flex-shrink:0;color:#f5c451;font-weight:bold">💰</span><span id="lh5-trade-money-clear" style="cursor:pointer;flex-shrink:0;font-size:16px;color:#888;padding:4px 6px;border-radius:4px;line-height:1;user-select:none" title="清除">✕</span>';
             const inp = document.createElement('input');
             inp.id = 'lh5-trade-money';
             inp.type = 'text';
@@ -432,7 +468,19 @@
             searchInput.parentNode.insertBefore(wrap, searchInput.nextSibling);
             moneyInput = inp;
 
-            inp.addEventListener('input', () => { applyFilterAndFormat(); });
+            inp.value = _savedQuery;
+            inp.addEventListener('input', () => { _savedQuery = inp.value; applyFilterAndFormat(); });
+
+            // ✕ 清除按鈕
+            const clearBtn = document.getElementById('lh5-trade-money-clear');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    inp.value = '';
+                    _savedQuery = '';
+                    applyFilterAndFormat();
+                    inp.focus();
+                });
+            }
             return true;
         }
 
@@ -478,12 +526,80 @@
     })();
 
     // ============================================================
+    //  🎬 戰鬥畫面縮放 [+]（隱藏/顯示怪物與戰鬥資訊）
+    // ============================================================
+    const battleCollapseFeature = (function () {
+        let observer = null;
+
+        function injectBtn(battle) {
+            if (battle.querySelector('#lh5-collapse-btn')) return;
+            const btn = document.createElement('div');
+            btn.id = 'lh5-collapse-btn';
+            btn.textContent = '−';
+            btn.title = '縮小戰鬥畫面';
+
+            // 初始狀態：未收合
+            let collapsed = false;
+
+            btn.addEventListener('click', () => {
+                collapsed = !collapsed;
+                btn.textContent = collapsed ? '+' : '−';
+                btn.title = collapsed ? '展開戰鬥畫面' : '縮小戰鬥畫面';
+                battle.classList.toggle('lh5-battle-collapsed', collapsed);
+                btn.classList.toggle('collapsed', collapsed);
+            });
+
+            // battle 是 position:relative，按鈕絕對定位在右上
+            if (getComputedStyle(battle).position === 'static') {
+                battle.style.position = 'relative';
+            }
+            battle.appendChild(btn);
+        }
+
+        function ensureCollapsedState(battle) {
+            const btn = battle.querySelector('#lh5-collapse-btn');
+            if (!btn) return;
+            const collapsed = btn.classList.contains('collapsed');
+            battle.classList.toggle('lh5-battle-collapsed', collapsed);
+        }
+
+        function tryStart() {
+            const battle = document.getElementById('battle');
+            if (!battle) { setTimeout(tryStart, 500); return; }
+
+            injectBtn(battle);
+            ensureCollapsedState(battle);
+
+            // 監聽 battle 重建
+            if (observer) observer.disconnect();
+            observer = new MutationObserver(() => {
+                const b2 = document.getElementById('battle');
+                if (b2 && !b2.querySelector('#lh5-collapse-btn')) {
+                    injectBtn(b2);
+                    ensureCollapsedState(b2);
+                }
+            });
+            observer.observe(document.getElementById('battle').parentNode || document.body, { childList: true, subtree: false });
+            return true;
+        }
+
+        function disable() {
+            if (observer) { observer.disconnect(); observer = null; }
+            document.querySelectorAll('#lh5-collapse-btn').forEach(el => el.remove());
+            document.querySelectorAll('#battle.lh5-battle-collapsed').forEach(el => el.classList.remove('lh5-battle-collapsed'));
+        }
+
+        return { tryStart, disable };
+    })();
+
+    // ============================================================
     //  🔧 開關控制
     // ============================================================
     function applyFeature(k, en) {
         if (k === 'bossPinAlive') { if (en) bossFeature.tryStart(); else bossFeature.disable(); }
         if (k === 'bagSearch') { if (en) bagFeature.tryStart(); else bagFeature.disable(); }
         if (k === 'tradeMoneySearch') { if (en) tradeMoneyFeature.tryStart(); else tradeMoneyFeature.disable(); }
+        if (k === 'battleCollapse') { if (en) battleCollapseFeature.tryStart(); else battleCollapseFeature.disable(); }
     }
     function initFeatures() { const s = loadSettings(); SETTINGS_DEF.forEach(d => applyFeature(d.key, s[d.key])); }
 
@@ -525,6 +641,7 @@
             if (s.bossPinAlive) { bossFeature.disable(); bossFeature.tryStart(); }
             if (s.bagSearch) { bagFeature.disable(); bagFeature.tryStart(); }
             if (s.tradeMoneySearch) { tradeMoneyFeature.disable(); tradeMoneyFeature.tryStart(); }
+            if (s.battleCollapse) { battleCollapseFeature.disable(); battleCollapseFeature.tryStart(); }
         }
 
         // 交易所金錢搜尋：檢查是否需要重新注入
