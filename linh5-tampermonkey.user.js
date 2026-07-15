@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 所有功能常駐
 // @namespace    https://linh5web.win/
-// @version      1.4.2
+// @version      1.4.3
 // @description  世界王存活自動置頂 + 背包物品檢索（搜尋/強化篩選）+ 道具名稱顯示（常駐）
 // @author       QClaw
 // @match        https://linh5web.win/*
