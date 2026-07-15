@@ -349,6 +349,8 @@
     // ── 6a. 世界王自動置頂 ──
     features.bossPinAlive = {
         observer: null,
+        originalOrder: null, // 固定原始排序 data-boss 陣列
+
         start() {
             if (this.observer) return;
             const panel = document.getElementById('panel-scroll');
@@ -371,26 +373,80 @@
                 this.observer.disconnect();
                 this.observer = null;
             }
+            // 恢復原始排序
+            if (this.originalOrder && this.originalOrder.length) {
+                const panel = document.getElementById('panel-scroll');
+                if (panel) this._restoreOriginal(panel);
+            }
         },
+
+        /** 記錄首次載入的固定排序 */
+        _captureOrder(panel) {
+            if (this.originalOrder) return;
+            const cards = panel.querySelectorAll(':scope > .wb-card');
+            this.originalOrder = Array.from(cards).map(el => el.dataset.boss);
+        },
+
+        /** 依 data-boss 恢復原始順序 */
+        _restoreOriginal(panel) {
+            if (!this.originalOrder || !this.originalOrder.length) return;
+            const cards = panel.querySelectorAll(':scope > .wb-card');
+            const map = {};
+            cards.forEach(el => { map[el.dataset.boss] = el; });
+            let changed = false;
+            const existing = Array.from(panel.children);
+            this.originalOrder.forEach((bossId, i) => {
+                const el = map[bossId];
+                if (el && existing[i] !== el) { changed = true; }
+            });
+            if (changed) {
+                this.originalOrder.forEach(bossId => {
+                    const el = map[bossId];
+                    if (el) panel.appendChild(el);
+                });
+            }
+        },
+
         sortPanel(panel) {
+            // 首次執行：記錄原始固定排序
+            this._captureOrder(panel);
+
             const cards = Array.from(panel.querySelectorAll(':scope > .wb-card'));
             if (cards.length < 2) return;
-            cards.sort((a, b) => {
+
+            // 檢查是否全部被擊敗
+            const allDead = cards.every(el => {
+                const sub = el.querySelector('.wb-sub');
+                return sub && sub.textContent.includes('已被擊敗');
+            });
+
+            if (allDead) {
+                // 全部已擊敗 → 恢復原始固定排序
+                this._restoreOriginal(panel);
+                return;
+            }
+
+            // 有存活王：存活排前，已擊敗排後（各自維持原始順序）
+            const sorted = cards.slice().sort((a, b) => {
                 const subA = a.querySelector('.wb-sub');
                 const subB = b.querySelector('.wb-sub');
                 const aliveA = subA ? !subA.textContent.includes('已被擊敗') : false;
                 const aliveB = subB ? !subB.textContent.includes('已被擊敗') : false;
                 if (aliveA && !aliveB) return -1;
                 if (!aliveA && aliveB) return 1;
-                return 0;
+                // 同組內依 data-boss 原始排序
+                const idxA = this.originalOrder ? this.originalOrder.indexOf(a.dataset.boss) : 0;
+                const idxB = this.originalOrder ? this.originalOrder.indexOf(b.dataset.boss) : 0;
+                return idxA - idxB;
             });
+
             let needsReorder = false;
             const existing = Array.from(panel.children);
-            for (let i = 0; i < cards.length; i++) {
-                if (cards[i] !== existing[i]) { needsReorder = true; break; }
+            for (let i = 0; i < sorted.length; i++) {
+                if (sorted[i] !== existing[i]) { needsReorder = true; break; }
             }
             if (needsReorder) {
-                cards.forEach(el => panel.appendChild(el));
+                sorted.forEach(el => panel.appendChild(el));
             }
         },
     };
