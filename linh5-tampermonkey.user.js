@@ -164,30 +164,13 @@
             if (needs) sorted.forEach(el => panel.appendChild(el));
         }
 
-        let statusEl = null;
-
-        function updateStatus(panel) {
-            if (!statusEl || !document.contains(statusEl)) {
-                statusEl = document.createElement('div');
-                statusEl.id = 'lh5-boss-status';
-                statusEl.style.cssText = 'padding:6px 10px;font-size:11px;color:#666;text-align:right;border-top:1px solid #2a2a3e;';
-                panel.appendChild(statusEl);
-            }
-            const now = new Date();
-            const pad = n => String(n).padStart(2, '0');
-            const ts = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
-            statusEl.textContent = '⏱ 監控中 · ' + ts;
-        }
-
         function start() {
             if (observer) return;
             const panel = document.getElementById('panel-scroll');
             if (!panel) { setTimeout(start, 500); return; }
             sortPanel(panel);
-            updateStatus(panel);
             observer = new MutationObserver(() => {
                 sortPanel(panel);
-                updateStatus(panel);
             });
             observer.observe(panel, { childList: true, subtree: false });
         }
