@@ -233,12 +233,12 @@
         .lh5-cell-label {
             display: block;
             text-align: center;
-            font-size: 9px;
-            color: #aaa;
+            font-size: 18px;
+            color: #ccc;
             line-height: 1.2;
             margin-top: 2px;
             word-break: break-all;
-            max-width: 72px;
+            max-width: 90px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
