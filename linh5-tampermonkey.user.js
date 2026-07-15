@@ -98,8 +98,7 @@
         .lh5-star:not(.pinned) { color:#444; }
         .wb-r1 { display:flex;align-items:center; }
         .lh5-boss-countdown { color:#fbbf24; font-weight:bold; margin-right:6px; }
-        #lh5-blood-btn { display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;cursor:pointer;border-radius:50%;background:rgba(180,40,40,0.2);font-size:16px;color:#e04040;transition:background .2s,transform .2s;user-select:none;margin-left:4px;flex-shrink:0;vertical-align:middle; }
-        #lh5-blood-btn:hover { background:rgba(180,40,40,0.45); transform:scale(1.15); }
+
     `);
 
     // ============================================================
@@ -122,6 +121,7 @@
     const SETTINGS_DEF = [
         { key: 'bossPinAlive', label: '世界王自動更新置頂', desc: '將「存活中」的世界王自動排到列表最前面' },
         { key: 'bagSearch', label: '背包物品檢索', desc: '在背包上方新增搜尋框與 +4~+10 強化篩選下拉' },
+        { key: 'tradeMoneySearch', label: '交易所金錢搜尋', desc: '在交易所新增金額模糊搜尋 + 價格簡寫' },
     ];
     function renderSettings() {
         const s = loadSettings();
@@ -338,81 +338,7 @@
         return { tryStart, disable };
     })();
 
-    // ============================================================
-    //  🩸 血盟按鈕功能
-    // ============================================================
-    const bloodBtn = document.createElement('div');
-    bloodBtn.id = 'lh5-blood-btn';
-    bloodBtn.textContent = '🧑';
-    bloodBtn.title = '血盟';
 
-    function mountBloodBtn() {
-        const tb = document.getElementById('topbar');
-        if (!tb) { setTimeout(mountBloodBtn, 300); return; }
-        const nameEl = document.getElementById('t-name');
-        if (!nameEl) { setTimeout(mountBloodBtn, 300); return; }
-        if (nameEl.parentNode.querySelector('#lh5-blood-btn')) return; // 已存在
-        nameEl.after(bloodBtn);
-    }
-
-    // 點擊血盟按鈕：直接操作 NPC grid（繞過遊戲事件監聽 isTrusted 限制）
-    // 遊戲用 hidden class 控制 #npc-grid 顯隱，頭像點擊由遊戲內部 state 管理
-    bloodBtn.addEventListener('click', () => {
-        const tryOpenNpc = () => {
-            const grid = document.getElementById('npc-grid');
-            if (!grid) return false;
-
-            // 1. 確保可見
-            grid.classList.remove('hidden');
-
-            // 2. 有 NPC 卡片嗎？
-            const cards = grid.querySelectorAll('.npc-card');
-            if (!cards.length) return false;
-
-            // 3. 找血盟 NPC 並點擊
-            let target = null;
-            for (const c of cards) {
-                const nt = c.querySelector('.nt');
-                if (nt && nt.textContent.includes('血盟')) { target = c; break; }
-                const nn = c.querySelector('.nn');
-                if (nn && nn.textContent.includes('血盟')) { target = c; break; }
-            }
-            if (target) {
-                // NPC card 的 onclick 是直接 assignment：c.onclick = () => openNpc(s.npcs[+c.dataset.i])
-                // 所以直接呼叫 onclick 最準確
-                if (typeof target.onclick === 'function') {
-                    target.onclick.call(target);
-                } else {
-                    target.click();
-                }
-                return true;
-            }
-
-            return false;
-        };
-
-        // 嘗試直接開
-        if (tryOpenNpc()) return;
-
-        // 沒卡片 → NPC grid 還是空的 → 需要先讓遊戲 render NPC
-        // 此時點頭像也沒用（isTrusted=false）
-        // 嘗試透過遊戲內部變數觸發
-        if (typeof currentTab !== 'undefined') {
-            // 如果 currentTab 還不是 'zone'/lobby 狀態，切過去會讓 renderState 重繪
-            // 保留原本值
-        }
-
-        // 巡邏直到 NPC grid 有內容（最多 30 秒）
-        let tries = 0;
-        const retry = setInterval(() => {
-            tries++;
-            if (tryOpenNpc()) {
-                clearInterval(retry);
-            } else if (tries >= 60) {
-                clearInterval(retry);
-            }
-        }, 500);
-    });
 
     // ============================================================
     //  💰 交易所金錢搜尋（模糊匹配 + 高亮）
@@ -557,11 +483,9 @@
     function applyFeature(k, en) {
         if (k === 'bossPinAlive') { if (en) bossFeature.tryStart(); else bossFeature.disable(); }
         if (k === 'bagSearch') { if (en) bagFeature.tryStart(); else bagFeature.disable(); }
+        if (k === 'tradeMoneySearch') { if (en) tradeMoneyFeature.tryStart(); else tradeMoneyFeature.disable(); }
     }
     function initFeatures() { const s = loadSettings(); SETTINGS_DEF.forEach(d => applyFeature(d.key, s[d.key])); }
-
-    // 交易所金錢搜尋（常駐，不進設定面板）
-    setTimeout(() => tradeMoneyFeature.tryStart(), 1000);
 
     // ============================================================
     //  ⚙ 齒輪掛載（topbar gold-box 右邊）
@@ -577,7 +501,6 @@
     //  🏁 初始化
     // ============================================================
     mountGear();
-    mountBloodBtn();
     initFeatures();
 
     // ============================================================
@@ -594,20 +517,20 @@
         if (panel !== _lastPanelNode) {
             _lastPanelNode = panel;
 
-            // 確認齒輪 + 血盟按鈕
+            // 確認齒輪
             if (!document.getElementById('lh5-settings-btn')) mountGear();
-            if (!document.getElementById('lh5-blood-btn')) mountBloodBtn();
 
             // 重啟功能
             const s = loadSettings();
             if (s.bossPinAlive) { bossFeature.disable(); bossFeature.tryStart(); }
             if (s.bagSearch) { bagFeature.disable(); bagFeature.tryStart(); }
-            tradeMoneyFeature.tryStart();
+            if (s.tradeMoneySearch) { tradeMoneyFeature.disable(); tradeMoneyFeature.tryStart(); }
         }
 
-        // 交易所金錢搜尋：檢查是否需要重新注入（當 trade-search 出現但金錢 input 不存在時）
+        // 交易所金錢搜尋：檢查是否需要重新注入
         if (document.getElementById('trade-search') && !document.getElementById('lh5-trade-money')) {
-            tradeMoneyFeature.tryStart();
+            const s2 = loadSettings();
+            if (s2.tradeMoneySearch) tradeMoneyFeature.tryStart();
         }
     }, 400);
 
