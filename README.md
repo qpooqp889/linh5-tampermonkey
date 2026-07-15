@@ -9,7 +9,7 @@
 2. 點擊下方安裝連結
 
 ### 安裝連結
-> [**🔗 安裝 LinH5 工具箱**](https://raw.githubusercontent.com/twric/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
+> [**🔗 安裝 LinH5 工具箱 v2.05**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
 
 或手動新增腳本，將 [linh5-tampermonkey.user.js](./linh5-tampermonkey.user.js) 內容貼入。
 
@@ -30,10 +30,11 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 - 下拉選單：依**強化值 +4 ~ +10** 篩選
 - 統計顯示「顯示 X / 總數」
 
-### 🩸 血盟快捷按鈕 🧑
-- 角色名稱右側 🧑 按鈕
-- 一鍵打開 NPC 面板並自動點選血盟 NPC
-- 無需手動點頭像 → 找血盟
+### 🎬 戰鬥畫面縮放
+- 戰鬥畫面（`#battle`）右上角 `−` 按鈕
+- 點擊可**收合**怪物區域、Boss 區域、NPC 大廳等資訊
+- 收合後按鈕變 `+`（金色），再點展開
+- 適合掛機時只監控角色狀態
 
 ### 💰 交易所金錢模糊搜尋
 - 名稱搜尋框下方新增 `💰` 金額輸入框
@@ -44,6 +45,8 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 
 | 版本 | 說明 |
 |------|------|
+| v2.05 | 新增戰鬥畫面縮放 [+] 按鈕（設定開關第四項） |
+| v2.04 | 移除血盟按鈕，交易所金錢搜尋改為設定開關 |
 | v2.03 | 世界王置頂 + 星星 + TOP 倒數 + 背包檢索 + 血盟按鈕 + 金錢搜尋 + 價格簡寫 |
 | v1.1 | 初始版本：世界王置頂 + 背包檢索（含設定面板） |
 
