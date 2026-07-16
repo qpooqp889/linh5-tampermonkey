@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.05
+// @version      2.06
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -108,20 +108,36 @@
         #lh5-collapse-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
         #lh5-collapse-btn.collapsed { color: #fbbf24; border-color: #fbbf2480; }
 
-        /* 收合狀態（只保留 #marquee-bar、#player-side、#btn-stop、#btn-lobby） */
-        .lh5-battle-collapsed #monster-slots,
-        .lh5-battle-collapsed #boss-area,
-        .lh5-battle-collapsed #boss-ctrl,
-        .lh5-battle-collapsed #npc-grid,
-        .lh5-battle-collapsed #lobby-ui,
-        .lh5-battle-collapsed #zone-name,
-        .lh5-battle-collapsed #btn-attack,
-        .lh5-battle-collapsed #fx {
+        /* 收合狀態：隱藏戰鬥畫面的背景裝飾/怪物/按鈕等，只保留血條 + 縮放按鈕 */
+        .lh5-battle-collapsed#battle {
+            height: 100px !important;
+            min-height: 100px !important;
+        }
+        .lh5-battle-collapsed#battle #marquee-bar,
+        .lh5-battle-collapsed#battle #btn-lobby,
+        .lh5-battle-collapsed#battle #zone-name,
+        .lh5-battle-collapsed#battle #pframe,
+        .lh5-battle-collapsed#battle .fname,
+        .lh5-battle-collapsed#battle #monster-slots,
+        .lh5-battle-collapsed#battle #boss-area,
+        .lh5-battle-collapsed#battle #boss-ctrl,
+        .lh5-battle-collapsed#battle #npc-grid,
+        .lh5-battle-collapsed#battle #lobby-ui,
+        .lh5-battle-collapsed#battle #btn-attack,
+        .lh5-battle-collapsed#battle #btn-stop,
+        .lh5-battle-collapsed#battle #fx {
             display: none !important;
         }
-        /* 收合時 battle 最小化 */
-        .lh5-battle-collapsed#battle {
-            min-height: 100px !important;
+        .lh5-battle-collapsed#battle #player-side {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 12px !important;
+            padding: 0 12px !important;
+        }
+        .lh5-battle-collapsed#battle .hpbar {
+            display: flex !important;
+            margin: 0 !important;
         }
         #lh5-boss-topbar { display:flex;align-items:center;justify-content:space-between;padding:4px 10px;background:#0e0e1a;border-bottom:1px solid #2a2a3e;font-size:11px;color:#666;flex-shrink:0; }
         #lh5-boss-topbar .lh5-boss-left { display:flex;align-items:center;gap:4px; }
