@@ -411,10 +411,7 @@
                 if (decPart === '0000') return intPart + ' 萬';
                 // 取前 2 位小數，去尾零
                 const kept = decPart.slice(0, 2).replace(/0+$/, '');
-                // 後 2 位有小數？補 ...
-                const remaining = decPart.slice(2);
-                const hasMore = remaining !== '00';
-                return intPart + '.' + kept + ' 萬' + (hasMore ? '...' : '');
+                return intPart + '.' + kept + ' 萬';
             }
             return '';
         }
