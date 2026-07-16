@@ -422,10 +422,26 @@
                     }
                 }
             });
+
+            // ── 排序 ──
+            const sortSelect = document.getElementById('lh5-trade-sort');
+            if (sortSelect && sortSelect.value === 'priceAsc') {
+                const list = document.getElementById('trade-list');
+                if (list) {
+                    const sorted = Array.from(list.children).filter(el => el.classList.contains('shop-item')).sort((a, b) => {
+                        const pa = parseInt((a.querySelector('.si-p')?.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
+                        const pb = parseInt((b.querySelector('.si-p')?.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
+                        return pa - pb;
+                    });
+                    sorted.forEach(el => list.appendChild(el));
+                }
+            } else {
+                // 保持遊戲給的順序
+            }
             _busy = false;
         }
 
-        // ── 注入金錢搜尋 input ──
+        // ── 注入金錢搜尋 input + 排序下拉 ──
         function injectMoneySearch() {
             const searchInput = document.getElementById('trade-search');
             if (!searchInput) return false;
@@ -440,11 +456,28 @@
             inp.placeholder = '💰 金額模糊搜尋（如 800 → 找到 2,800,000）';
             wrap.appendChild(inp);
 
+            // ── 排序下拉（右邊） ──
+            const sortSelect = document.createElement('select');
+            sortSelect.id = 'lh5-trade-sort';
+            sortSelect.style.cssText = 'background:#0d0d18;border:1px solid #333;border-radius:6px;padding:5px 8px;color:#e0d5c1;font-size:13px;outline:none;cursor:pointer;flex-shrink:0;';
+            const optDefault = document.createElement('option');
+            optDefault.value = 'default';
+            optDefault.textContent = '預設';
+            const optPriceAsc = document.createElement('option');
+            optPriceAsc.value = 'priceAsc';
+            optPriceAsc.textContent = '價錢低→高';
+            sortSelect.appendChild(optDefault);
+            sortSelect.appendChild(optPriceAsc);
+            wrap.appendChild(sortSelect);
+
             searchInput.parentNode.insertBefore(wrap, searchInput.nextSibling);
             moneyInput = inp;
 
             inp.value = _savedQuery;
             inp.addEventListener('input', () => { _savedQuery = inp.value; applyFilterAndFormat(); });
+
+            // 排序變更
+            sortSelect.addEventListener('change', applyFilterAndFormat);
 
             // ✕ 清除按鈕
             const clearBtn = document.getElementById('lh5-trade-money-clear');
@@ -459,14 +492,13 @@
             return true;
         }
 
-        // ── Observer（注意：初始 state 也要立刻過濾一次！）──
+        // ── Observer ──
         function setupObserver() {
             const list = document.getElementById('trade-list');
             if (list) {
                 if (listObserver) listObserver.disconnect();
                 listObserver = new MutationObserver(() => {
                     if (_busy) return;
-                    // 重新注入 input（如果被清掉）
                     if (!document.getElementById('lh5-trade-money')) {
                         moneyInput = null;
                         injectMoneySearch();
@@ -482,7 +514,6 @@
             setupObserver();
             // ★ 立刻過濾 + 價格簡寫（處理 observer 綁定前已存在的項目）
             applyFilterAndFormat();
-            // ★ 延遲再過濾一次（處理 paintTradeList() 可能正在 async 渲染中）
             setTimeout(applyFilterAndFormat, 200);
             setTimeout(applyFilterAndFormat, 800);
             return true;
