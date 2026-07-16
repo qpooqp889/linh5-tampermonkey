@@ -19,8 +19,9 @@
     //  ⚙ 設定 + localStorage
     // ============================================================
     const STORAGE_KEY = 'lh5_settings';
-    const DEFAULTS = { bossPinAlive: true, bagSearch: true };
+    const DEFAULTS = { bossPinAlive: true, bagSearch: true, nameChange: false };
     const PINNED_KEY = 'lh5_pinned_bosses';
+    const NAME_KEY = 'lh5_custom_name';
 
     function loadSettings() {
         try { const r = GM_getValue(STORAGE_KEY, null); if (r) return { ...DEFAULTS, ...JSON.parse(r) }; } catch (_) {}
@@ -105,6 +106,12 @@
         .lh5-star:not(.pinned) { color:#444; }
         .wb-r1 { display:flex;align-items:center; }
         .lh5-boss-countdown { color:#fbbf24; font-weight:bold; margin-right:6px; }
+        /* ── 變更姓名輸入 ── */
+        .lh5-name-input-row { display:flex;gap:8px;padding:10px 0;border-top:1px solid #2a2a3e;margin-top:4px; }
+        .lh5-name-input-row input { flex:1;background:#0d0d18;border:1px solid #333;border-radius:6px;padding:6px 10px;color:#e0d5c1;font-size:13px;outline:none; }
+        .lh5-name-input-row input:focus { border-color:#c8a96e; }
+        .lh5-name-input-row button { background:#c8a96e;color:#1a1a2e;border:none;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;font-weight:bold;transition:background .2s; }
+        .lh5-name-input-row button:hover { background:#dbb85e; }
 
     `);
 
@@ -131,19 +138,41 @@
         { key: 'bossPinAlive', label: '世界王自動更新置頂', desc: '將「存活中」的世界王自動排到列表最前面' },
         { key: 'bagSearch', label: '背包物品檢索', desc: '在背包上方新增搜尋框與 +4~+10 強化篩選下拉' },
         { key: 'tradeMoneySearch', label: '交易所金錢搜尋', desc: '在交易所新增金額模糊搜尋 + 價格簡寫' },
-
+        { key: 'nameChange', label: '變更姓名', desc: '自訂顯示名稱（不影響伺服器）' },
     ];
     function renderSettings() {
         const s = loadSettings();
-        document.getElementById('lh5-modal-body').innerHTML = SETTINGS_DEF.map(d => {
+        let html = SETTINGS_DEF.map(d => {
             const c = s[d.key] ? 'checked' : '';
             return `<div class="lh5-switch-row"><label class="lh5-switch-label"><div>${d.label}</div>${d.desc?`<div class="desc">${d.desc}</div>`:''}</label><label class="lh5-toggle"><input type="checkbox" data-key="${d.key}" ${c}><span class="slider"></span></label></div>`;
         }).join('');
+        // 變更姓名開關開啟時，下面多一個輸入框
+        if (s.nameChange) {
+            const curName = localStorage.getItem(NAME_KEY) || '';
+            html += `<div class="lh5-name-input-row"><input id="lh5-name-input" type="text" maxlength="12" placeholder="輸入自訂名稱…" value="${curName.replace(/"/g,'&quot;')}"><button id="lh5-name-apply">套用</button></div>`;
+        }
+        document.getElementById('lh5-modal-body').innerHTML = html;
         document.querySelectorAll('#lh5-modal-body .lh5-toggle input[type="checkbox"]').forEach(cb => {
             cb.addEventListener('change', () => {
-                const k = cb.dataset.key, s2 = loadSettings(); s2[k] = cb.checked; saveSettings(s2); applyFeature(k, cb.checked);
+                const k = cb.dataset.key, s2 = loadSettings(); s2[k] = cb.checked; saveSettings(s2);
+                renderSettings();
+                applyFeature(k, cb.checked);
             });
         });
+        const nameInp = document.getElementById('lh5-name-input');
+        const nameBtn = document.getElementById('lh5-name-apply');
+        if (nameInp && nameBtn) {
+            const apply = () => {
+                const v = nameInp.value.trim();
+                if (v) {
+                    localStorage.setItem(NAME_KEY, v);
+                    const el = document.getElementById('t-name');
+                    if (el) el.textContent = v;
+                }
+            };
+            nameBtn.addEventListener('click', apply);
+            nameInp.addEventListener('keydown', e => { if (e.key === 'Enter') apply(); });
+        }
     }
 
     // ============================================================
@@ -541,15 +570,39 @@
 
 
     // ============================================================
-    //  🔧 開關控制
+    //  🔧 開關控制 + 名稱功能
     // ============================================================
     function applyFeature(k, en) {
         if (k === 'bossPinAlive') { if (en) bossFeature.tryStart(); else bossFeature.disable(); }
         if (k === 'bagSearch') { if (en) bagFeature.tryStart(); else bagFeature.disable(); }
         if (k === 'tradeMoneySearch') { if (en) tradeMoneyFeature.tryStart(); else tradeMoneyFeature.disable(); }
-
+        if (k === 'nameChange') { nameFeature(en); }
     }
     function initFeatures() { const s = loadSettings(); SETTINGS_DEF.forEach(d => applyFeature(d.key, s[d.key])); }
+
+    // ── 名稱功能 ──
+    function nameFeature(en) {
+        if (en) {
+            applyCustomName();
+            if (!window._lh5_nameWatcher) {
+                window._lh5_nameWatcher = setInterval(() => {
+                    if (!loadSettings().nameChange) return;
+                    applyCustomName();
+                }, 600);
+            }
+        } else {
+            if (window._lh5_nameWatcher) {
+                clearInterval(window._lh5_nameWatcher);
+                window._lh5_nameWatcher = null;
+            }
+        }
+    }
+    function applyCustomName() {
+        const v = localStorage.getItem(NAME_KEY);
+        if (!v) return;
+        const el = document.getElementById('t-name');
+        if (el && el.textContent !== v) el.textContent = v;
+    }
 
     // ============================================================
     //  ⚙ 齒輪掛載（topbar gold-box 右邊）
