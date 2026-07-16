@@ -92,53 +92,10 @@
         .lh5-trade-hidden-money { display:none!important; }
         .lh5-price-fmt { color:#f5c451; font-weight:bold; font-size:11px; margin-left:4px; }
 
-        /* ── 戰鬥畫面縮放 [+] ── */
-        #lh5-collapse-btn {
-            position: absolute; top: 4px; right: 4px;
-            z-index: 9999;
-            width: 26px; height: 26px;
-            cursor: pointer; user-select: none;
-            background: rgba(0,0,0,0.45);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 6px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px; color: #ccc; line-height: 1;
-            transition: background .2s, color .2s;
-        }
-        #lh5-collapse-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
-        #lh5-collapse-btn.collapsed { color: #fbbf24; border-color: #fbbf2480; }
 
-        /* 收合狀態：隱藏戰鬥畫面的背景裝飾/怪物/按鈕等，只保留血條 + 縮放按鈕 */
-        .lh5-battle-collapsed#battle {
-            height: 100px !important;
-            min-height: 100px !important;
-        }
-        .lh5-battle-collapsed#battle #marquee-bar,
-        .lh5-battle-collapsed#battle #btn-lobby,
-        .lh5-battle-collapsed#battle #zone-name,
-        .lh5-battle-collapsed#battle #pframe,
-        .lh5-battle-collapsed#battle .fname,
-        .lh5-battle-collapsed#battle #monster-slots,
-        .lh5-battle-collapsed#battle #boss-area,
-        .lh5-battle-collapsed#battle #boss-ctrl,
-        .lh5-battle-collapsed#battle #npc-grid,
-        .lh5-battle-collapsed#battle #lobby-ui,
-        .lh5-battle-collapsed#battle #btn-attack,
-        .lh5-battle-collapsed#battle #btn-stop,
-        .lh5-battle-collapsed#battle #fx {
-            display: none !important;
-        }
-        .lh5-battle-collapsed#battle #player-side {
-            display: flex !important;
-            flex-direction: row !important;
-            align-items: center !important;
-            gap: 12px !important;
-            padding: 0 12px !important;
-        }
-        .lh5-battle-collapsed#battle .hpbar {
-            display: flex !important;
-            margin: 0 !important;
-        }
+
+
+
         #lh5-boss-topbar { display:flex;align-items:center;justify-content:space-between;padding:4px 10px;background:#0e0e1a;border-bottom:1px solid #2a2a3e;font-size:11px;color:#666;flex-shrink:0; }
         #lh5-boss-topbar .lh5-boss-left { display:flex;align-items:center;gap:4px; }
         #lh5-boss-topbar .lh5-boss-dot { width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0; }
@@ -174,7 +131,7 @@
         { key: 'bossPinAlive', label: '世界王自動更新置頂', desc: '將「存活中」的世界王自動排到列表最前面' },
         { key: 'bagSearch', label: '背包物品檢索', desc: '在背包上方新增搜尋框與 +4~+10 強化篩選下拉' },
         { key: 'tradeMoneySearch', label: '交易所金錢搜尋', desc: '在交易所新增金額模糊搜尋 + 價格簡寫' },
-        { key: 'battleCollapse', label: '戰鬥畫面縮放', desc: '右上角 [+] 按鈕隱藏/顯示怪物與戰鬥資訊' },
+
     ];
     function renderSettings() {
         const s = loadSettings();
@@ -543,91 +500,7 @@
         return { tryStart, disable };
     })();
 
-    // ============================================================
-    //  🎬 戰鬥畫面縮放 [+]（隱藏/顯示怪物與戰鬥資訊）
-    // ============================================================
-    const battleCollapseFeature = (function () {
-        let observer = null;
-        let _collapsed = false; // 全域持久化收合狀態
-        let patrolTimer = null;
 
-        // ── 核心：檢查並修復戰鬥畫面狀態（純函式，可被 timer / observer 調用）──
-        let _enforcing = false;
-
-        function enforce() {
-            if (_enforcing) return;
-            _enforcing = true;
-            try {
-                const battle = document.getElementById('battle');
-                if (!battle) return;
-
-                // 1. 按鈕是否存在？不在就重建
-                let btn = battle.querySelector('#lh5-collapse-btn');
-                if (!btn) {
-                    btn = document.createElement('div');
-                    btn.id = 'lh5-collapse-btn';
-                    if (getComputedStyle(battle).position === 'static') {
-                        battle.style.position = 'relative';
-                    }
-                    btn.textContent = _collapsed ? '+' : '−';
-                    btn.title = _collapsed ? '展開戰鬥畫面' : '縮小戰鬥畫面';
-                    btn.addEventListener('click', () => {
-                        _collapsed = !_collapsed;
-                        applyState(battle, _collapsed);
-                    });
-                    battle.appendChild(btn);
-                }
-
-                // 2. 確保 state 正確（比對後才改，避免無限迴圈）
-                const hasClass = battle.classList.contains('lh5-battle-collapsed');
-                if (hasClass !== _collapsed) {
-                    applyState(battle, _collapsed);
-                }
-            } finally {
-                _enforcing = false;
-            }
-        }
-
-        function applyState(battle, collapsed) {
-            battle.classList.toggle('lh5-battle-collapsed', collapsed);
-            const btn = battle.querySelector('#lh5-collapse-btn');
-            if (btn) {
-                btn.textContent = collapsed ? '+' : '−';
-                btn.title = collapsed ? '展開戰鬥畫面' : '縮小戰鬥畫面';
-                btn.classList.toggle('collapsed', collapsed);
-            }
-        }
-
-        function tryStart() {
-            // 先執行一次
-            enforce();
-
-            // Observer：監聽 childList + class 變化
-            // 有 guard（比對後才改 class），不會無限迴圈
-            if (observer) observer.disconnect();
-            const battle = document.getElementById('battle');
-            if (battle) {
-                observer = new MutationObserver(() => enforce());
-                observer.observe(battle, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-            }
-
-            // 巡邏員：每 300ms 檢查一次（遊戲 render loop 頻率，永遠壓得住）
-            if (patrolTimer) clearInterval(patrolTimer);
-            patrolTimer = setInterval(enforce, 300);
-
-            return true;
-        }
-
-        function disable() {
-            if (observer) { observer.disconnect(); observer = null; }
-            if (patrolTimer) { clearInterval(patrolTimer); patrolTimer = null; }
-            _collapsed = false;
-            document.querySelectorAll('#lh5-collapse-btn').forEach(el => el.remove());
-            document.querySelectorAll('#battle.lh5-battle-collapsed').forEach(el => el.classList.remove('lh5-battle-collapsed'));
-        }
-
-        return { tryStart, disable };
-    })();
 
     // ============================================================
     //  🔧 開關控制
@@ -636,7 +509,7 @@
         if (k === 'bossPinAlive') { if (en) bossFeature.tryStart(); else bossFeature.disable(); }
         if (k === 'bagSearch') { if (en) bagFeature.tryStart(); else bagFeature.disable(); }
         if (k === 'tradeMoneySearch') { if (en) tradeMoneyFeature.tryStart(); else tradeMoneyFeature.disable(); }
-        if (k === 'battleCollapse') { if (en) battleCollapseFeature.tryStart(); else battleCollapseFeature.disable(); }
+
     }
     function initFeatures() { const s = loadSettings(); SETTINGS_DEF.forEach(d => applyFeature(d.key, s[d.key])); }
 
@@ -678,7 +551,7 @@
             if (s.bossPinAlive) { bossFeature.disable(); bossFeature.tryStart(); }
             if (s.bagSearch) { bagFeature.disable(); bagFeature.tryStart(); }
             if (s.tradeMoneySearch) { tradeMoneyFeature.disable(); tradeMoneyFeature.tryStart(); }
-            if (s.battleCollapse) { battleCollapseFeature.disable(); battleCollapseFeature.tryStart(); }
+
         }
 
         // 交易所金錢搜尋：檢查是否需要重新注入
