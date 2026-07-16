@@ -426,17 +426,14 @@
             // ── 排序 ──
             const sortSelect = document.getElementById('lh5-trade-sort');
             if (sortSelect && sortSelect.value === 'priceAsc') {
-                const list = document.getElementById('trade-list');
-                if (list) {
-                    const sorted = Array.from(list.children).filter(el => el.classList.contains('shop-item')).sort((a, b) => {
-                        const pa = parseInt((a.querySelector('.si-p')?.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
-                        const pb = parseInt((b.querySelector('.si-p')?.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
-                        return pa - pb;
-                    });
-                    sorted.forEach(el => list.appendChild(el));
-                }
-            } else {
-                // 保持遊戲給的順序
+                if (listObserver) listObserver.disconnect();
+                const sorted = Array.from(list.children).filter(el => el.classList.contains('shop-item')).sort((a, b) => {
+                    const pa = parseInt((a.querySelector('.si-p')?.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
+                    const pb = parseInt((b.querySelector('.si-p')?.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
+                    return pa - pb;
+                });
+                sorted.forEach(el => list.appendChild(el));
+                if (listObserver) listObserver.observe(list, { childList: true });
             }
             _busy = false;
         }
