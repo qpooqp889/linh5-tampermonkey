@@ -552,32 +552,40 @@
         let patrolTimer = null;
 
         // ── 核心：檢查並修復戰鬥畫面狀態（純函式，可被 timer / observer 調用）──
+        let _enforcing = false;
+
         function enforce() {
-            const battle = document.getElementById('battle');
-            if (!battle) return;
+            if (_enforcing) return;
+            _enforcing = true;
+            try {
+                const battle = document.getElementById('battle');
+                if (!battle) return;
 
-            // 1. 按鈕是否存在？不在就重建
-            let btn = battle.querySelector('#lh5-collapse-btn');
-            if (!btn) {
-                btn = document.createElement('div');
-                btn.id = 'lh5-collapse-btn';
-                if (getComputedStyle(battle).position === 'static') {
-                    battle.style.position = 'relative';
+                // 1. 按鈕是否存在？不在就重建
+                let btn = battle.querySelector('#lh5-collapse-btn');
+                if (!btn) {
+                    btn = document.createElement('div');
+                    btn.id = 'lh5-collapse-btn';
+                    if (getComputedStyle(battle).position === 'static') {
+                        battle.style.position = 'relative';
+                    }
+                    btn.textContent = _collapsed ? '+' : '−';
+                    btn.title = _collapsed ? '展開戰鬥畫面' : '縮小戰鬥畫面';
+                    btn.addEventListener('click', () => {
+                        _collapsed = !_collapsed;
+                        applyState(battle, _collapsed);
+                    });
+                    battle.appendChild(btn);
                 }
-                btn.textContent = _collapsed ? '+' : '−';
-                btn.title = _collapsed ? '展開戰鬥畫面' : '縮小戰鬥畫面';
-                btn.addEventListener('click', () => {
-                    _collapsed = !_collapsed;
+
+                // 2. 確保 state 正確（比對後才改，避免無限迴圈）
+                const hasClass = battle.classList.contains('lh5-battle-collapsed');
+                if (hasClass !== _collapsed) {
                     applyState(battle, _collapsed);
-                });
-                battle.appendChild(btn);
+                }
+            } finally {
+                _enforcing = false;
             }
-
-            // 2. 確保按鈕 class 正確
-            btn.classList.toggle('collapsed', _collapsed);
-
-            // 3. 確保 battle class 正確（遊戲 SPA 重繪時會清掉！）
-            applyState(battle, _collapsed);
         }
 
         function applyState(battle, collapsed) {
@@ -594,7 +602,8 @@
             // 先執行一次
             enforce();
 
-            // Observer 監聽 battle 子節點變化（SPA 重繪時重建）
+            // Observer：監聽 childList + class 變化
+            // 有 guard（比對後才改 class），不會無限迴圈
             if (observer) observer.disconnect();
             const battle = document.getElementById('battle');
             if (battle) {
@@ -602,9 +611,9 @@
                 observer.observe(battle, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
             }
 
-            // 巡邏員：每 600ms 檢查一次（兜底，不怕 observer 漏掉）
+            // 巡邏員：每 300ms 檢查一次（遊戲 render loop 頻率，永遠壓得住）
             if (patrolTimer) clearInterval(patrolTimer);
-            patrolTimer = setInterval(enforce, 600);
+            patrolTimer = setInterval(enforce, 300);
 
             return true;
         }
