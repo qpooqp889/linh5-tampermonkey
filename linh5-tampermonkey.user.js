@@ -368,14 +368,24 @@
             return String(priceNum).includes(String(qNum));
         }
 
-        // ── 產生價格簡寫: 280 萬 / 1,500 萬 / 1.5 億 ──
+        // ── 價格簡寫: 1299999 → 129.99... 萬 / 2800000 → 280 萬 / 1.5 億 ──
         function formatPriceShort(priceNum) {
             if (priceNum >= 100000000) {
                 const yi = (priceNum / 100000000).toFixed(1).replace(/\.0$/, '');
                 return yi + ' 億';
             }
             if (priceNum >= 10000) {
-                return Math.round(priceNum / 10000).toLocaleString() + ' 萬';
+                const s = String(priceNum);
+                const intPart = s.slice(0, -4);
+                const decPart = s.slice(-4);
+                // 全部 0 → 整數萬
+                if (decPart === '0000') return intPart + ' 萬';
+                // 取前 2 位小數，去尾零
+                const kept = decPart.slice(0, 2).replace(/0+$/, '');
+                // 後 2 位有小數？補 ...
+                const remaining = decPart.slice(2);
+                const hasMore = remaining !== '00';
+                return intPart + '.' + kept + ' 萬' + (hasMore ? '...' : '');
             }
             return '';
         }
