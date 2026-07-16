@@ -546,61 +546,71 @@
     // ============================================================
     const battleCollapseFeature = (function () {
         let observer = null;
+        let _collapsed = false; // 全域持久化收合狀態
+        let patrolTimer = null;
 
-        function injectBtn(battle) {
-            if (battle.querySelector('#lh5-collapse-btn')) return;
-            const btn = document.createElement('div');
-            btn.id = 'lh5-collapse-btn';
-            btn.textContent = '−';
-            btn.title = '縮小戰鬥畫面';
+        // ── 核心：檢查並修復戰鬥畫面狀態（純函式，可被 timer / observer 調用）──
+        function enforce() {
+            const battle = document.getElementById('battle');
+            if (!battle) return;
 
-            // 初始狀態：未收合
-            let collapsed = false;
-
-            btn.addEventListener('click', () => {
-                collapsed = !collapsed;
-                btn.textContent = collapsed ? '+' : '−';
-                btn.title = collapsed ? '展開戰鬥畫面' : '縮小戰鬥畫面';
-                battle.classList.toggle('lh5-battle-collapsed', collapsed);
-                btn.classList.toggle('collapsed', collapsed);
-            });
-
-            // battle 是 position:relative，按鈕絕對定位在右上
-            if (getComputedStyle(battle).position === 'static') {
-                battle.style.position = 'relative';
+            // 1. 按鈕是否存在？不在就重建
+            let btn = battle.querySelector('#lh5-collapse-btn');
+            if (!btn) {
+                btn = document.createElement('div');
+                btn.id = 'lh5-collapse-btn';
+                if (getComputedStyle(battle).position === 'static') {
+                    battle.style.position = 'relative';
+                }
+                btn.textContent = _collapsed ? '+' : '−';
+                btn.title = _collapsed ? '展開戰鬥畫面' : '縮小戰鬥畫面';
+                btn.addEventListener('click', () => {
+                    _collapsed = !_collapsed;
+                    applyState(battle, _collapsed);
+                });
+                battle.appendChild(btn);
             }
-            battle.appendChild(btn);
+
+            // 2. 確保按鈕 class 正確
+            btn.classList.toggle('collapsed', _collapsed);
+
+            // 3. 確保 battle class 正確（遊戲 SPA 重繪時會清掉！）
+            applyState(battle, _collapsed);
         }
 
-        function ensureCollapsedState(battle) {
-            const btn = battle.querySelector('#lh5-collapse-btn');
-            if (!btn) return;
-            const collapsed = btn.classList.contains('collapsed');
+        function applyState(battle, collapsed) {
             battle.classList.toggle('lh5-battle-collapsed', collapsed);
+            const btn = battle.querySelector('#lh5-collapse-btn');
+            if (btn) {
+                btn.textContent = collapsed ? '+' : '−';
+                btn.title = collapsed ? '展開戰鬥畫面' : '縮小戰鬥畫面';
+                btn.classList.toggle('collapsed', collapsed);
+            }
         }
 
         function tryStart() {
-            const battle = document.getElementById('battle');
-            if (!battle) { setTimeout(tryStart, 500); return; }
+            // 先執行一次
+            enforce();
 
-            injectBtn(battle);
-            ensureCollapsedState(battle);
-
-            // 監聽 battle 重建
+            // Observer 監聽 battle 子節點變化（SPA 重繪時重建）
             if (observer) observer.disconnect();
-            observer = new MutationObserver(() => {
-                const b2 = document.getElementById('battle');
-                if (b2 && !b2.querySelector('#lh5-collapse-btn')) {
-                    injectBtn(b2);
-                    ensureCollapsedState(b2);
-                }
-            });
-            observer.observe(document.getElementById('battle').parentNode || document.body, { childList: true, subtree: false });
+            const battle = document.getElementById('battle');
+            if (battle) {
+                observer = new MutationObserver(() => enforce());
+                observer.observe(battle, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+            }
+
+            // 巡邏員：每 600ms 檢查一次（兜底，不怕 observer 漏掉）
+            if (patrolTimer) clearInterval(patrolTimer);
+            patrolTimer = setInterval(enforce, 600);
+
             return true;
         }
 
         function disable() {
             if (observer) { observer.disconnect(); observer = null; }
+            if (patrolTimer) { clearInterval(patrolTimer); patrolTimer = null; }
+            _collapsed = false;
             document.querySelectorAll('#lh5-collapse-btn').forEach(el => el.remove());
             document.querySelectorAll('#battle.lh5-battle-collapsed').forEach(el => el.classList.remove('lh5-battle-collapsed'));
         }
