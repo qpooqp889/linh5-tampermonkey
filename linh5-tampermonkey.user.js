@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.21
+// @version      2.22
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1179,6 +1179,17 @@
         }
     });
 
+    // ============================================================
+    //  🛎️ AFK 斷線自動按「收下」（每30分鐘檢查）
+    // ============================================================
+    function startAfkCheck() {
+        // 每 2 秒檢查斷線阻擋畫面，出現立刻按「收下」
+        setInterval(() => {
+            const btn = document.getElementById('afk-ok');
+            if (btn && btn.offsetParent !== null) { btn.click(); }
+        }, 2000);
+    }
+
     const bossCountdownEl = document.createElement('span');
     bossCountdownEl.id = 'lh5-boss-countdown';
 
@@ -1226,6 +1237,7 @@
     mountGear();
     mountFriendBtn();
     startBossCountdown();
+    startAfkCheck();
     initFeatures();
 
     // ============================================================
