@@ -201,8 +201,8 @@
         }
         .lh5-friend-item:last-child { border-bottom:none; }
         .lh5-friend-name { color:#e0d5c1; }
-        .lh5-friend-name .cu-link { color:#ffd700;cursor:pointer; }
-        .lh5-friend-name .cu-link:hover { text-decoration:underline; }
+        .cu.cu-link { color:#ffd700;cursor:pointer; }
+        .cu.cu-link:hover { text-decoration:underline; }
         .lh5-friend-del {
             padding:3px 10px;border:none;border-radius:4px;
             background:#5a2a2a;color:#ff6b6b;font-size:12px;cursor:pointer;
@@ -1089,7 +1089,7 @@
             if (searchVal && !f.name.toLowerCase().includes(searchVal)) return;
             visible++;
             html += `<div class="lh5-friend-item">
-                <span class="lh5-friend-name">${f.name.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>
+                <span class="cu cu-link">${f.name.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>
                 <button class="lh5-friend-del" data-idx="${i}">刪除</button>
             </div>`;
         });
