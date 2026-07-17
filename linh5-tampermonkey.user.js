@@ -262,7 +262,7 @@
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.20 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
+    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.23 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -315,7 +315,74 @@
                     break;
                 }
             }
-        }        document.querySelectorAll('#lh5-modal-body .lh5-toggle input[type="checkbox"]').forEach(cb => {
+        }
+        // 🤖 掛機腳本開關開啟時，插入參數 UI
+        if (s.autoFarm) {
+            const farmLowVal = localStorage.getItem(FARM_LOW_KEY) || '10';
+            const farmHighVal = localStorage.getItem(FARM_HIGH_KEY) || '80';
+            const farmZoneVal = localStorage.getItem(FARM_ZONE_KEY) || 'zone_07';
+            const farmZoneName = FARM_ZONES.find(z => z.id === farmZoneVal)?.name || '古魯丁地監2樓';
+            const rows = document.querySelectorAll('#lh5-modal-body .lh5-switch-row');
+            for (const row of rows) {
+                const cb = row.querySelector('input[data-key="autoFarm"]');
+                if (cb) {
+                    const wrapper = document.createElement('div');
+                    wrapper.style.cssText = 'margin-top:8px;width:100%';
+                    wrapper.innerHTML = `
+                        <div style="padding:10px;background:#12121e;border-radius:8px">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#ccc">
+                                <span>MP <：</span>
+                                <input id="lh5-farm-low" type="number" min="1" max="99" value="${farmLowVal}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                                <span>% 回大廳</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#ccc">
+                                <span>MP >：</span>
+                                <input id="lh5-farm-high" type="number" min="1" max="99" value="${farmHighVal}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                                <span>% 出發掛機</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#ccc">
+                                <span>地圖：</span>
+                                <input id="lh5-farm-filter" type="text" placeholder="🔍 檢索地圖…" style="width:70px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                                <select id="lh5-farm-zone" size="6" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
+                                    ${FARM_ZONES.map(z => `<option value="${z.id}"${z.id===farmZoneVal?' selected':''}>${z.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div id="lh5-farm-status" style="font-size:11px;color:#666;margin-top:6px;">監控中 (MP < ${farmLowVal}%回大廳, > ${farmHighVal}%前往 ${farmZoneName})</div>
+                        </div>
+                    `;
+                    // 運行/停止按鈕
+                    const runBtn = document.createElement('div');
+                    runBtn.id = 'lh5-farm-run-btn';
+                    runBtn.style.cssText = 'margin-top:6px;padding:8px 12px;text-align:center;border-radius:8px;font-size:13px;font-weight:bold;cursor:pointer;transition:background .2s';
+                    if (autoFarmFeature.isRunning()) {
+                        runBtn.style.cssText += 'background:#5a2a2a;color:#ff6b6b';
+                        runBtn.textContent = '■ 停止';
+                    } else {
+                        runBtn.style.cssText += 'background:#2a4a3a;color:#4ade80';
+                        runBtn.textContent = '▶ 運行';
+                    }
+                    runBtn.addEventListener('click', () => {
+                        if (autoFarmFeature.isRunning()) {
+                            autoFarmFeature.stop();
+                            gearBtn.style.animation = 'none';
+                        } else {
+                            const l = parseInt(document.getElementById('lh5-farm-low')?.value || '10', 10);
+                            const h = parseInt(document.getElementById('lh5-farm-high')?.value || '80', 10);
+                            const z = document.getElementById('lh5-farm-zone')?.value || 'zone_07';
+                            autoFarmFeature.runWithConfig(l, h, z);
+                            gearBtn.style.animation = 'lh5-gear-running 1.5s linear infinite';
+                            gearBtn.style.border = '2px solid #4ade80';
+                            gearBtn.style.borderRadius = '50%';
+                        }
+                        renderSettings();
+                    });
+                    wrapper.appendChild(runBtn);
+                    row.appendChild(wrapper);
+                    break;
+                }
+            }
+        }
+        document.querySelectorAll('#lh5-modal-body .lh5-toggle input[type="checkbox"]').forEach(cb => {
             cb.addEventListener('change', () => {
                 const k = cb.dataset.key, s2 = loadSettings(); s2[k] = cb.checked; saveSettings(s2);
                 renderSettings();
