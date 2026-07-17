@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.17
+// @version      2.18
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -215,7 +215,7 @@
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.17 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
+    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.18 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -917,17 +917,29 @@
             // 在中間區間：不做任何事，維持現狀
         }
 
-        // 斷線重連：檢查是否有角色選取畫面，點擊指定 slot
+        // 斷線重連：先點登入按鈕（若存在）→延遲5秒→再選角色slot
         function reconnectCheck() {
+            // 1. 檢查登入按鈕
+            const loginBtn = document.getElementById('btn-login');
+            if (loginBtn && !loginBtn.classList.contains('hidden')) {
+                clickElement(loginBtn);
+                // 點完後延遲5秒再選角色
+                setTimeout(() => pickCharSlot(), 5000);
+                return;
+            }
+            // 2. 沒有登入鈕 → 直接檢查角色
+            pickCharSlot();
+        }
+
+        function pickCharSlot() {
             const slots = document.getElementById('slots');
-            if (!slots) return; // 沒有角色選取畫面
+            if (!slots) return;
             const charSlots = slots.querySelectorAll(':scope > .char-slot');
             if (charSlots.length <= _reconnectSlot) return;
             const targetSlot = charSlots[_reconnectSlot];
             if (!targetSlot) return;
-            // 檢查是否為空欄位
             const empty = targetSlot.querySelector('.empty');
-            if (empty) return; // 空欄位不點
+            if (empty) return;
             clickElement(targetSlot);
         }
 
