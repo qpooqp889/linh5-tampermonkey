@@ -173,6 +173,7 @@
             margin-left:4px;flex-shrink:0;vertical-align:middle;
         }
         #lh5-friend-btn:hover { background:rgba(255,80,80,0.3); transform:scale(1.15); }
+        #lh5-boss-countdown { display:none;font-size:14px;font-weight:bold;color:#ff3333;margin-left:6px;flex-shrink:0;font-variant-numeric:tabular-nums; }
         #lh5-friend-overlay {
             position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,0.6);
             display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px);
@@ -1178,12 +1179,35 @@
         }
     });
 
+    const bossCountdownEl = document.createElement('span');
+    bossCountdownEl.id = 'lh5-boss-countdown';
+
+    function startBossCountdown() {
+        setInterval(() => {
+            const now = new Date();
+            const m = now.getMinutes();
+            const s = now.getSeconds();
+            if (m === 59) {
+                const secsLeft = 59 - s;
+                bossCountdownEl.textContent = secsLeft + 's';
+                bossCountdownEl.style.display = 'inline';
+                if (secsLeft <= 10) bossCountdownEl.style.color = '#ff0000';
+                else bossCountdownEl.style.color = '#ff3333';
+            } else {
+                bossCountdownEl.style.display = 'none';
+            }
+        }, 1000);
+    }
+
     function mountFriendBtn() {
         const tb = document.getElementById('topbar'); if (!tb) { setTimeout(mountFriendBtn, 300); return; }
         const nameEl = document.getElementById('t-name');
         if (!nameEl) { setTimeout(mountFriendBtn, 300); return; }
         if (nameEl.parentNode.querySelector('#lh5-friend-btn')) return;
         nameEl.after(friendBtn);
+        if (!document.getElementById('lh5-boss-countdown')) {
+            friendBtn.after(bossCountdownEl);
+        }
     }
 
     // ============================================================
@@ -1201,6 +1225,7 @@
     // ============================================================
     mountGear();
     mountFriendBtn();
+    startBossCountdown();
     initFeatures();
 
     // ============================================================
@@ -1219,7 +1244,7 @@
 
             // 確認齒輪
             if (!document.getElementById('lh5-settings-btn')) mountGear();
-            if (!document.getElementById('lh5-friend-btn')) mountFriendBtn();
+            if (!document.getElementById('lh5-friend-btn')) { mountFriendBtn(); if (!document.getElementById('lh5-boss-countdown') && friendBtn.nextSibling) { friendBtn.after(bossCountdownEl); } }
 
             // 重啟功能
             const s = loadSettings();
