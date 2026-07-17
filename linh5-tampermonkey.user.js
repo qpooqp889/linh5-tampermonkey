@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.15
+// @version      2.16
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -27,6 +27,28 @@
     const FARM_ZONE_KEY = 'lh5_farm_zone';
 
     const FARM_ZONES = [
+        // ── 野外 ──
+        { id: 'training', name: '新兵修練場' },
+        { id: 'silver_knight', name: '銀騎士地區' },
+        { id: 'talking_island', name: '說話之島周邊' },
+        { id: 'zone_01', name: '妖精森林周邊' },
+        { id: 'talking_island_port', name: '說話之島港口' },
+        { id: 'elf_forest', name: '妖魔森林' },
+        { id: 'gludio', name: '古魯丁' },
+        { id: 'windwood', name: '風木' },
+        { id: 'desert', name: '沙漠' },
+        { id: 'kent', name: '肯特' },
+        { id: 'dragon_valley', name: '龍之谷' },
+        { id: 'fire_dragon', name: '火龍窟' },
+        { id: 'giran', name: '奇岩' },
+        { id: 'heine', name: '海音' },
+        { id: 'mirror_forest', name: '鏡子森林' },
+        { id: 'zone_02', name: '歐瑞' },
+        { id: 'zone_03', name: '歐瑞雪原' },
+        { id: 'zone_04', name: '艾爾摩激戰地' },
+        { id: 'zone_05', name: '國境要塞' },
+        { id: 'dream_island', name: '夢幻之島' },
+        // ── 地監 ──
         { id: 'zone_06', name: '古魯丁地監1樓' },
         { id: 'zone_07', name: '古魯丁地監2樓' },
         { id: 'zone_08', name: '古魯丁地監3樓' },
@@ -189,7 +211,7 @@
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.15 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
+    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.16 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
