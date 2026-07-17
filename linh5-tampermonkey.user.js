@@ -287,7 +287,6 @@
             const c = s[d.key] ? 'checked' : '';
             return `<div class="lh5-switch-row"><label class="lh5-switch-label"><div>${d.label}</div>${d.desc?`<div class="desc">${d.desc}</div>`:''}</label><label class="lh5-toggle"><input type="checkbox" data-key="${d.key}" ${c}><span class="slider"></span></label></div>`;
         }).join('');
-        }).join('');
         document.getElementById('lh5-modal-body').innerHTML = html;
         // 變更姓名開關開啟時，在該 switch-row 內插入輸入框（同一層）
         if (s.nameChange) {
