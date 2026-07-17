@@ -305,7 +305,7 @@
                     btn.id = 'lh5-name-apply'; btn.textContent = '套用';
                     btn.style.cssText = 'padding:4px 12px;border:none;border-radius:4px;background:#c8a96e;color:#1a1a2e;font-size:12px;cursor:pointer;font-weight:bold;flex-shrink:0';
                     wrap.appendChild(inp); wrap.appendChild(btn);
-                    row.appendChild(wrap);
+                    row.parentNode.insertBefore(wrap, row.nextSibling);
                     const apply = () => {
                         const v = inp.value.trim();
                         if (v) { localStorage.setItem(NAME_KEY, v); const el = document.getElementById('t-name'); if (el) el.textContent = v; }
@@ -377,7 +377,7 @@
                         renderSettings();
                     });
                     wrapper.appendChild(runBtn);
-                    row.appendChild(wrapper);
+                    row.parentNode.insertBefore(wrapper, row.nextSibling);
                     break;
                 }
             }
