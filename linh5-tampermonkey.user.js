@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.12
+// @version      2.13
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -189,7 +189,7 @@
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.12 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
+    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.13 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -237,9 +237,13 @@
                     <input id="lh5-farm-high" type="number" min="1" max="99" value="${high}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
                     <span>% 出發掛機</span>
                 </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px;color:#ccc">
+                    <span>🔍</span>
+                    <input id="lh5-farm-filter" type="text" placeholder="過濾地圖名稱…" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                </div>
                 <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#ccc">
                     <span>地圖：</span>
-                    <select id="lh5-farm-zone" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
+                    <select id="lh5-farm-zone" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer" size="6">
                         ${FARM_ZONES.map(z => `<option value="${z.id}"${z.id===zone?' selected':''}>${z.name}</option>`).join('')}
                     </select>
                 </div>
@@ -273,7 +277,22 @@
         const farmLow = document.getElementById('lh5-farm-low');
         const farmHigh = document.getElementById('lh5-farm-high');
         const farmZone = document.getElementById('lh5-farm-zone');
+        const farmFilter = document.getElementById('lh5-farm-filter');
         if (farmLow && farmHigh && farmZone) {
+            // 檢索過濾
+            if (farmFilter) {
+                farmFilter.addEventListener('input', () => {
+                    const q = farmFilter.value.trim();
+                    Array.from(farmZone.options).forEach(opt => {
+                        opt.hidden = !!q && !opt.text.includes(q);
+                    });
+                    // 如果選中的被隱藏，自動選第一個可見的
+                    if (farmZone.selectedOptions[0]?.hidden) {
+                        const firstVisible = Array.from(farmZone.options).find(o => !o.hidden);
+                        if (firstVisible) firstVisible.selected = true;
+                    }
+                });
+            }
             const saveFarm = () => {
                 const l = parseInt(farmLow.value, 10);
                 const h = parseInt(farmHigh.value, 10);
