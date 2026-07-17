@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.11
+// @version      2.12
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -189,7 +189,7 @@
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.11 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
+    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.12 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -752,60 +752,73 @@
             if (btn) clickElement(btn);
         }
 
-        // 切到目標地圖並攻擊
+        // 判斷某 zone-id 屬於哪個 subtab（野外/地監）
+        function getSubtabCategory(zoneId) {
+            // 地監分頁的 ID 列表（zone_06~zone_41／crystal_cave／eva_kingdom）
+            const dungeonIds = [];
+            for (let i = 6; i <= 41; i++) dungeonIds.push('zone_' + String(i).padStart(2,'0'));
+            dungeonIds.push('crystal_cave1', 'crystal_cave2', 'crystal_cave3', 'eva_kingdom');
+            if (dungeonIds.includes(zoneId)) return 'dungeon';
+            return 'wild'; // 其他都當野外
+        }
+
+        // 切到目標地圖並攻擊（步驟串聯，不平行觸發）
         function goToZone() {
             const zoneName = getTargetZoneName();
             if (!zoneName) return;
 
-            // 0. 先點上方的「狩獵場」tab
+            const cat = getSubtabCategory(_targetZone);
+
+            // Step 0: 點上方的「狩獵場」tab
             const tabs = document.querySelectorAll('.tab');
             for (const t of tabs) {
                 const dt = t.getAttribute('data-tab');
                 if (dt === 'zone') { clickElement(t); break; }
             }
 
-            // 1. 等一幀後點「地監」subtab
+            // Step 1 (+200ms): 點正確的 subtab（野外/地監）
             setTimeout(() => {
                 const subtabs = document.querySelectorAll('.subtab');
                 for (const st of subtabs) {
                     const dc = st.getAttribute('data-c');
-                    if (dc === 'dungeon') { clickElement(st); break; }
+                    if (dc === cat) { clickElement(st); break; }
                 }
-            }, 100);
 
-            // 2. 等一幀後找目標 zone-item 並點擊
-            setTimeout(() => {
-                const panel = document.getElementById('panel-scroll');
-                if (!panel) return;
-                const items = panel.querySelectorAll(':scope > .zone-item');
-                for (const item of items) {
-                    if (item.getAttribute('data-zone') === _targetZone) {
-                        clickElement(item);
-                        break;
-                    }
-                }
-            }, 100);
-
-            // 3. 再等一幀後檢查是否正確切換
-            setTimeout(() => {
-                const current = getCurrentZoneName();
-                if (current === zoneName) {
-                    // 正確→點攻擊
-                    const atk = document.getElementById('btn-attack');
-                    if (atk && !atk.classList.contains('hidden')) clickElement(atk);
-                } else {
-                    // 不在該地圖→已經點過zone-item了，但可能沒反應，再試一次
+                // Step 2 (+500ms): 在 panel-scroll 找目標 zone-item 並點
+                setTimeout(() => {
                     const panel = document.getElementById('panel-scroll');
                     if (!panel) return;
                     const items = panel.querySelectorAll(':scope > .zone-item');
+                    let found = false;
                     for (const item of items) {
                         if (item.getAttribute('data-zone') === _targetZone) {
                             clickElement(item);
+                            found = true;
                             break;
                         }
                     }
-                }
-            }, 300);
+
+                    // Step 3 (+500ms): 檢查 zone-name 是否正確
+                    setTimeout(() => {
+                        const current = getCurrentZoneName();
+                        if (current === zoneName) {
+                            const atk = document.getElementById('btn-attack');
+                            if (atk && !atk.classList.contains('hidden')) clickElement(atk);
+                        } else if (found) {
+                            // 點了但還沒切好→嘗試再點一次
+                            const p2 = document.getElementById('panel-scroll');
+                            if (!p2) return;
+                            const items2 = p2.querySelectorAll(':scope > .zone-item');
+                            for (const item of items2) {
+                                if (item.getAttribute('data-zone') === _targetZone) {
+                                    clickElement(item);
+                                    break;
+                                }
+                            }
+                        }
+                    }, 500);
+                }, 500);
+            }, 200);
         }
 
         function tick() {
