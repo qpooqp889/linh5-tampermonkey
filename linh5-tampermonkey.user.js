@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.16
+// @version      2.17
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -25,6 +25,8 @@
     const FARM_LOW_KEY = 'lh5_farm_mp_low';
     const FARM_HIGH_KEY = 'lh5_farm_mp_high';
     const FARM_ZONE_KEY = 'lh5_farm_zone';
+    const FARM_SLOT_KEY = 'lh5_farm_slot';
+    const FARM_RECONNECT_KEY = 'lh5_farm_reconnect';
 
     const FARM_ZONES = [
         // ── 野外 ──
@@ -48,6 +50,7 @@
         { id: 'zone_04', name: '艾爾摩激戰地' },
         { id: 'zone_05', name: '國境要塞' },
         { id: 'dream_island', name: '夢幻之島' },
+        { id: 'oblivion_island', name: '遺忘之島' },
         // ── 地監 ──
         { id: 'zone_06', name: '古魯丁地監1樓' },
         { id: 'zone_07', name: '古魯丁地監2樓' },
@@ -145,6 +148,7 @@
         #lh5-modal {
             background:#1a1a2e;border:1px solid #c8a96e;border-radius:12px;
             padding:24px 28px;min-width:300px;max-width:400px;
+            max-height:90vh;overflow-y:auto;
             box-shadow:0 8px 40px rgba(0,0,0,0.6);color:#e0d5c1;font-size:14px;
         }
         #lh5-modal h2 { margin:0 0 20px;font-size:18px;color:#c8a96e;border-bottom:1px solid #333;padding-bottom:10px; }
@@ -211,7 +215,7 @@
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.16 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
+    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.17 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -268,6 +272,16 @@
                     <select id="lh5-farm-zone" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer" size="6">
                         ${FARM_ZONES.map(z => `<option value="${z.id}"${z.id===zone?' selected':''}>${z.name}</option>`).join('')}
                     </select>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#ccc;margin-top:4px">
+                    <span>🔗 斷線重連：</span>
+                    <select id="lh5-farm-slot" style="background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
+                        <option value="0"${getStored(FARM_SLOT_KEY)=='0'?' selected':''}>角色 0</option>
+                        <option value="1"${getStored(FARM_SLOT_KEY)=='1'?' selected':''}>角色 1</option>
+                        <option value="2"${getStored(FARM_SLOT_KEY)=='2'?' selected':''}>角色 2</option>
+                    </select>
+                    <input id="lh5-farm-reconnect" type="number" min="10" max="3600" value="${getStored(FARM_RECONNECT_KEY,'300')}" style="width:55px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;text-align:center">
+                    <span style="font-size:11px">秒</span>
                 </div>
                 <div id="lh5-farm-status" style="font-size:11px;color:#666;margin-top:6px;">監控中 (MP < ${low}%回大廳, > ${high}%前往 ${zoneName})</div>
                 <button id="lh5-farm-toggle" style="margin-top:8px;width:100%;padding:6px 0;border:none;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;transition:background .2s;background:#22c55e;color:#fff">▶ 運行</button>
@@ -332,6 +346,17 @@
             farmHigh.addEventListener('input', saveFarm);
             farmZone.addEventListener('change', saveFarm);
         }
+        // 斷線重連設定存檔
+        const farmSlot = document.getElementById('lh5-farm-slot');
+        const farmReconnect = document.getElementById('lh5-farm-reconnect');
+        if (farmSlot) farmSlot.addEventListener('change', () => localStorage.setItem(FARM_SLOT_KEY, farmSlot.value));
+        if (farmReconnect) farmReconnect.addEventListener('change', () => {
+            let v = parseInt(farmReconnect.value, 10);
+            if (isNaN(v) || v < 10) v = 10;
+            if (v > 3600) v = 3600;
+            farmReconnect.value = v;
+            localStorage.setItem(FARM_RECONNECT_KEY, String(v));
+        });
         // 運行/停止按鈕
         const toggleBtn = document.getElementById('lh5-farm-toggle');
         if (toggleBtn) {
@@ -748,12 +773,20 @@
         let _mpHigh = 80;
         let _targetZone = 'zone_07';
         let _isResting = false; // 是否正在回MP狀態
+        let _reconnectSlot = 0; // 斷線重連的角色位置 0/1/2
+        let _reconnectSec = 300; // 斷線重連檢查間隔（秒）
+        let _reconnectTimer = null; // 斷線重連 timer
 
         function loadConfig() {
             try {
                 _mpLow = parseInt(localStorage.getItem(FARM_LOW_KEY), 10) || 10;
                 _mpHigh = parseInt(localStorage.getItem(FARM_HIGH_KEY), 10) || 80;
                 _targetZone = localStorage.getItem(FARM_ZONE_KEY) || 'zone_07';
+                _reconnectSlot = parseInt(localStorage.getItem(FARM_SLOT_KEY), 10) || 0;
+                _reconnectSec = parseInt(localStorage.getItem(FARM_RECONNECT_KEY), 10) || 300;
+                if (_reconnectSlot < 0 || _reconnectSlot > 2) _reconnectSlot = 0;
+                if (_reconnectSec < 10) _reconnectSec = 10;
+                if (_reconnectSec > 3600) _reconnectSec = 3600;
             } catch (_) {}
             _mpLow = Math.max(1, Math.min(99, _mpLow));
             _mpHigh = Math.max(1, Math.min(99, _mpHigh));
@@ -884,12 +917,29 @@
             // 在中間區間：不做任何事，維持現狀
         }
 
+        // 斷線重連：檢查是否有角色選取畫面，點擊指定 slot
+        function reconnectCheck() {
+            const slots = document.getElementById('slots');
+            if (!slots) return; // 沒有角色選取畫面
+            const charSlots = slots.querySelectorAll(':scope > .char-slot');
+            if (charSlots.length <= _reconnectSlot) return;
+            const targetSlot = charSlots[_reconnectSlot];
+            if (!targetSlot) return;
+            // 檢查是否為空欄位
+            const empty = targetSlot.querySelector('.empty');
+            if (empty) return; // 空欄位不點
+            clickElement(targetSlot);
+        }
+
         function runWithConfig() {
             loadConfig();
             _enabled = true;
             _isResting = false;
             if (timer) { clearInterval(timer); timer = null; }
             timer = setInterval(tick, 2000);
+            // 斷線重連巡邏
+            if (_reconnectTimer) { clearInterval(_reconnectTimer); _reconnectTimer = null; }
+            _reconnectTimer = setInterval(reconnectCheck, _reconnectSec * 1000);
             // 齒輪動畫
             const gb = document.getElementById('lh5-settings-btn');
             if (gb) gb.classList.add('lh5-running');
@@ -903,6 +953,7 @@
         function stop() {
             _enabled = false;
             if (timer) { clearInterval(timer); timer = null; }
+            if (_reconnectTimer) { clearInterval(_reconnectTimer); _reconnectTimer = null; }
             _isResting = false;
             // 移除齒輪動畫
             const gb = document.getElementById('lh5-settings-btn');
