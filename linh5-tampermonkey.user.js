@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.19
+// @version      2.20
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -164,6 +164,57 @@
         .lh5-toggle input:checked + .slider::after { transform:translateX(20px);background:#fff; }
         #lh5-modal-close-hint { text-align:right;font-size:12px;color:#666;margin-top:12px;cursor:pointer; }
         #lh5-modal-close-hint:hover { color:#aaa; }
+
+        #lh5-friend-btn {
+            display:inline-flex;align-items:center;justify-content:center;
+            width:28px;height:28px;cursor:pointer;border-radius:50%;
+            background:rgba(255,80,80,0.15);font-size:15px;color:#ff6b6b;
+            transition:background .2s,transform .2s;user-select:none;
+            margin-left:4px;flex-shrink:0;vertical-align:middle;
+        }
+        #lh5-friend-btn:hover { background:rgba(255,80,80,0.3); transform:scale(1.15); }
+        #lh5-friend-overlay {
+            position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,0.6);
+            display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px);
+        }
+        #lh5-friend-overlay.open { display:flex; }
+        #lh5-friend-modal {
+            background:#1a1a2e;border:1px solid #ff6b6b;border-radius:12px;
+            padding:24px 28px;min-width:320px;max-width:420px;
+            max-height:85vh;overflow-y:auto;
+            box-shadow:0 8px 40px rgba(0,0,0,0.6);color:#e0d5c1;font-size:14px;
+        }
+        #lh5-friend-modal h2 { margin:0 0 16px;font-size:17px;color:#ff6b6b;border-bottom:1px solid #333;padding-bottom:10px;display:flex;align-items:center;justify-content:space-between; }
+        #lh5-friend-input-row { display:flex;gap:6px;margin-bottom:10px; }
+        #lh5-friend-input-row input { flex:1;background:#0d0d18;border:1px solid #333;border-radius:6px;padding:6px 10px;color:#e0d5c1;font-size:13px;outline:none; }
+        #lh5-friend-input-row input:focus { border-color:#ff6b6b; }
+        #lh5-friend-input-row input::placeholder { color:#555; }
+        #lh5-friend-input-row button { padding:6px 14px;border:none;border-radius:6px;background:#ff6b6b;color:#fff;font-size:13px;cursor:pointer;font-weight:bold; }
+        #lh5-friend-input-row button:hover { background:#e05555; }
+        #lh5-friend-search { width:100%;padding:6px 10px;margin-bottom:8px;background:#0d0d18;border:1px solid #333;border-radius:6px;color:#e0d5c1;font-size:13px;outline:none;box-sizing:border-box; }
+        #lh5-friend-search:focus { border-color:#ff6b6b; }
+        #lh5-friend-search::placeholder { color:#555; }
+        .lh5-friend-item {
+            display:flex;align-items:center;justify-content:space-between;
+            padding:8px 10px;border-bottom:1px solid #2a2a3e;
+            font-size:13px;
+        }
+        .lh5-friend-item:last-child { border-bottom:none; }
+        .lh5-friend-name { color:#e0d5c1; }
+        .lh5-friend-name .cu-link { color:#ffd700;cursor:pointer; }
+        .lh5-friend-name .cu-link:hover { text-decoration:underline; }
+        .lh5-friend-del {
+            padding:3px 10px;border:none;border-radius:4px;
+            background:#5a2a2a;color:#ff6b6b;font-size:12px;cursor:pointer;
+        }
+        .lh5-friend-del:hover { background:#7a3a3a; }
+        .lh5-friend-count { font-size:11px;color:#666;margin-top:6px;text-align:center; }
+        .lh5-friend-toolbar { display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #2a2a3e; }
+        .lh5-friend-toolbar button {
+            flex:1;padding:5px 0;border:none;border-radius:6px;
+            font-size:12px;cursor:pointer;color:#e0d5c1;background:#2a2a3e;
+        }
+        .lh5-friend-toolbar button:hover { background:#3a3a4e; }
         #lh5-bag-search-bar { display:flex;align-items:center;gap:8px;padding:6px 8px;background:#12121e;border-bottom:1px solid #2a2a3e;flex-shrink:0; }
         #lh5-bag-search-bar input { flex:1;min-width:0;background:#0d0d18;border:1px solid #333;border-radius:6px;padding:5px 10px;color:#e0d5c1;font-size:13px;outline:none;transition:border-color .2s; }
         #lh5-bag-search-bar input:focus { border-color:#c8a96e; }
@@ -215,7 +266,7 @@
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.19 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
+    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.20 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -1028,6 +1079,150 @@
     }
 
     // ============================================================
+    //  😍 好友按鈕 + Modal
+    // ============================================================
+    const FRIEND_STORAGE_KEY = 'lh5_friends';
+
+    function getFriends() {
+        try { const r = localStorage.getItem(FRIEND_STORAGE_KEY); return r ? JSON.parse(r) : []; } catch(_) { return []; }
+    }
+    function saveFriends(list) { localStorage.setItem(FRIEND_STORAGE_KEY, JSON.stringify(list)); }
+
+    const friendBtn = document.createElement('div');
+    friendBtn.id = 'lh5-friend-btn'; friendBtn.textContent = '😍'; friendBtn.title = '好友管理';
+
+    const friendOverlay = document.createElement('div'); friendOverlay.id = 'lh5-friend-overlay';
+    friendOverlay.innerHTML = `
+        <div id="lh5-friend-modal">
+            <h2><span>😍 好友清單</span><span style="font-size:11px;color:#666;cursor:pointer" id="lh5-friend-close">✕ 關閉</span></h2>
+            <div id="lh5-friend-input-row" class="lh5-friend-input-row">
+                <input id="lh5-friend-add-input" type="text" placeholder="輸入玩家名稱…" maxlength="24">
+                <button id="lh5-friend-add-btn">新增</button>
+            </div>
+            <input id="lh5-friend-search" type="text" placeholder="🔍 搜尋好友…">
+            <div id="lh5-friend-list"></div>
+            <div class="lh5-friend-count" id="lh5-friend-count"></div>
+            <div class="lh5-friend-toolbar">
+                <button id="lh5-friend-export">📤 匯出 JSON</button>
+                <button id="lh5-friend-import">📥 匯入 JSON</button>
+            </div>
+            <input id="lh5-friend-file-input" type="file" accept=".json" style="display:none">
+        </div>
+    `;
+    document.body.appendChild(friendOverlay);
+
+    friendBtn.addEventListener('click', () => { renderFriendList(); friendOverlay.classList.add('open'); });
+    friendOverlay.addEventListener('click', e => {
+        if (e.target === friendOverlay || e.target.id === 'lh5-friend-close') friendOverlay.classList.remove('open');
+    });
+
+    function renderFriendList() {
+        const list = getFriends();
+        const searchVal = (document.getElementById('lh5-friend-search')?.value || '').trim().toLowerCase();
+        let html = '';
+        let visible = 0;
+        list.forEach((f, i) => {
+            if (searchVal && !f.name.toLowerCase().includes(searchVal)) return;
+            visible++;
+            html += `<div class="lh5-friend-item">
+                <span class="lh5-friend-name">${f.name.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>
+                <button class="lh5-friend-del" data-idx="${i}">刪除</button>
+            </div>`;
+        });
+        const listEl = document.getElementById('lh5-friend-list');
+        listEl.innerHTML = html || '<div style="text-align:center;color:#666;padding:20px;font-size:13px">暫無好友</div>';
+        document.getElementById('lh5-friend-count').textContent = visible > 0 ? `顯示 ${visible} / ${list.length} 人` : `共 ${list.length} 人`;
+
+        // 刪除事件
+        listEl.querySelectorAll('.lh5-friend-del').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.dataset.idx, 10);
+                const l = getFriends();
+                if (idx >= 0 && idx < l.length) {
+                    l.splice(idx, 1);
+                    saveFriends(l);
+                    renderFriendList();
+                }
+            });
+        });
+    }
+
+    // 輸入搜尋
+    document.addEventListener('input', e => {
+        if (e.target.id === 'lh5-friend-search') renderFriendList();
+    });
+
+    // 新增好友
+    document.addEventListener('click', e => {
+        if (e.target.id === 'lh5-friend-add-btn') {
+            const inp = document.getElementById('lh5-friend-add-input');
+            const name = inp?.value?.trim();
+            if (!name) return;
+            const l = getFriends();
+            if (l.some(f => f.name === name)) { inp.value = ''; return; }
+            l.push({ name, addedAt: Date.now() });
+            saveFriends(l);
+            inp.value = '';
+            renderFriendList();
+        }
+    });
+
+    // Enter 新增
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && e.target.id === 'lh5-friend-add-input') {
+            document.getElementById('lh5-friend-add-btn')?.click();
+        }
+    });
+
+    // 匯出 JSON
+    document.addEventListener('click', e => {
+        if (e.target.id === 'lh5-friend-export') {
+            const data = JSON.stringify(getFriends(), null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            const now = new Date();
+            a.download = `好友清單_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+    });
+
+    // 匯入 JSON
+    document.addEventListener('click', e => {
+        if (e.target.id === 'lh5-friend-import') {
+            document.getElementById('lh5-friend-file-input')?.click();
+        }
+    });
+    document.addEventListener('change', e => {
+        if (e.target.id === 'lh5-friend-file-input' && e.target.files?.[0]) {
+            const reader = new FileReader();
+            reader.onload = ev => {
+                try {
+                    const arr = JSON.parse(ev.target.result);
+                    if (!Array.isArray(arr)) throw new Error('非陣列');
+                    const clean = arr.filter(x => x && typeof x.name === 'string' && x.name.trim());
+                    const existing = getFriends();
+                    const names = new Set(existing.map(f => f.name));
+                    clean.forEach(f => { if (!names.has(f.name)) { names.add(f.name); existing.push({ name: f.name, addedAt: f.addedAt || Date.now() }); } });
+                    saveFriends(existing);
+                    renderFriendList();
+                } catch(_) { alert('JSON 格式錯誤，請確認為 [{name:"..."}] 陣列'); }
+            };
+            reader.readAsText(e.target.files[0]);
+            e.target.value = '';
+        }
+    });
+
+    function mountFriendBtn() {
+        const tb = document.getElementById('topbar'); if (!tb) { setTimeout(mountFriendBtn, 300); return; }
+        const nameEl = document.getElementById('t-name');
+        if (!nameEl) { setTimeout(mountFriendBtn, 300); return; }
+        if (nameEl.parentNode.querySelector('#lh5-friend-btn')) return;
+        nameEl.after(friendBtn);
+    }
+
+    // ============================================================
     //  ⚙ 齒輪掛載（topbar gold-box 右邊）
     // ============================================================
     function mountGear() {
@@ -1041,6 +1236,7 @@
     //  🏁 初始化
     // ============================================================
     mountGear();
+    mountFriendBtn();
     initFeatures();
 
     // ============================================================
@@ -1059,6 +1255,7 @@
 
             // 確認齒輪
             if (!document.getElementById('lh5-settings-btn')) mountGear();
+            if (!document.getElementById('lh5-friend-btn')) mountFriendBtn();
 
             // 重啟功能
             const s = loadSettings();
