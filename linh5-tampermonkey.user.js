@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.09
+// @version      2.10
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -171,7 +171,7 @@
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.09 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
+    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.10 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -723,12 +723,21 @@
             const zoneName = getTargetZoneName();
             if (!zoneName) return;
 
-            // 1. 先點「地監」subtab
-            const subtabs = document.querySelectorAll('.subtab');
-            for (const st of subtabs) {
-                const dc = st.getAttribute('data-c');
-                if (dc === 'dungeon') { clickElement(st); break; }
+            // 0. 先點上方的「狩獵場」tab
+            const tabs = document.querySelectorAll('.tab');
+            for (const t of tabs) {
+                const dt = t.getAttribute('data-tab');
+                if (dt === 'zone') { clickElement(t); break; }
             }
+
+            // 1. 等一幀後點「地監」subtab
+            setTimeout(() => {
+                const subtabs = document.querySelectorAll('.subtab');
+                for (const st of subtabs) {
+                    const dc = st.getAttribute('data-c');
+                    if (dc === 'dungeon') { clickElement(st); break; }
+                }
+            }, 100);
 
             // 2. 等一幀後找目標 zone-item 並點擊
             setTimeout(() => {
