@@ -247,12 +247,7 @@
         .lh5-star:not(.pinned) { color:#444; }
         .wb-r1 { display:flex;align-items:center; }
         .lh5-boss-countdown { color:#fbbf24; font-weight:bold; margin-right:6px; }
-        /* ── 變更姓名輸入 ── */
-        .lh5-name-input-row { display:flex;gap:8px;padding:10px 0;border-top:1px solid #2a2a3e;margin-top:4px; }
-        .lh5-name-input-row input { flex:1;background:#0d0d18;border:1px solid #333;border-radius:6px;padding:6px 10px;color:#e0d5c1;font-size:13px;outline:none; }
-        .lh5-name-input-row input:focus { border-color:#c8a96e; }
-        .lh5-name-input-row button { background:#c8a96e;color:#1a1a2e;border:none;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;font-weight:bold;transition:background .2s; }
-        .lh5-name-input-row button:hover { background:#dbb85e; }
+        
 
     `);
 
@@ -291,75 +286,43 @@
             const c = s[d.key] ? 'checked' : '';
             return `<div class="lh5-switch-row"><label class="lh5-switch-label"><div>${d.label}</div>${d.desc?`<div class="desc">${d.desc}</div>`:''}</label><label class="lh5-toggle"><input type="checkbox" data-key="${d.key}" ${c}><span class="slider"></span></label></div>`;
         }).join('');
-        // 變更姓名開關開啟時，下面多一個輸入框
+        }).join('');
+        document.getElementById('lh5-modal-body').innerHTML = html;
+        // 變更姓名開關開啟時，在該 switch-row 內插入輸入框（同一層）
         if (s.nameChange) {
             const curName = localStorage.getItem(NAME_KEY) || '';
-            html += `<div class="lh5-name-input-row"><input id="lh5-name-input" type="text" maxlength="12" placeholder="輸入自訂名稱…" value="${curName.replace(/"/g,'&quot;')}"><button id="lh5-name-apply">套用</button></div>`;
-        }
-        // 🤖 掛機腳本設定
-        if (s.autoFarm) {
-            const low = localStorage.getItem(FARM_LOW_KEY) || '10';
-            const high = localStorage.getItem(FARM_HIGH_KEY) || '80';
-            const zone = localStorage.getItem(FARM_ZONE_KEY) || 'zone_07';
-            const zoneName = FARM_ZONES.find(z => z.id === zone)?.name || '古魯丁地監2樓';
-            html += `<div style="margin-top:8px;padding:10px;background:#12121e;border-radius:8px">
-                <div style="font-size:13px;color:#c8a96e;margin-bottom:8px">🤖 掛機設定</div>
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#ccc">
-                    <span>MP <：</span>
-                    <input id="lh5-farm-low" type="number" min="1" max="99" value="${low}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
-                    <span>% 回大廳</span>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#ccc">
-                    <span>MP >：</span>
-                    <input id="lh5-farm-high" type="number" min="1" max="99" value="${high}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
-                    <span>% 出發掛機</span>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px;color:#ccc">
-                    <span>🔍</span>
-                    <input id="lh5-farm-filter" type="text" placeholder="過濾地圖名稱…" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#ccc">
-                    <span>地圖：</span>
-                    <select id="lh5-farm-zone" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer" size="6">
-                        ${FARM_ZONES.map(z => `<option value="${z.id}"${z.id===zone?' selected':''}>${z.name}</option>`).join('')}
-                    </select>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#ccc;margin-top:4px">
-                    <span>🔗 斷線重連：</span>
-                    <select id="lh5-farm-slot" style="background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
-                        <option value="0"${getStored(FARM_SLOT_KEY)=='0'?' selected':''}>角色 0</option>
-                        <option value="1"${getStored(FARM_SLOT_KEY)=='1'?' selected':''}>角色 1</option>
-                        <option value="2"${getStored(FARM_SLOT_KEY)=='2'?' selected':''}>角色 2</option>
-                    </select>
-                    <input id="lh5-farm-reconnect" type="number" min="10" max="3600" value="${getStored(FARM_RECONNECT_KEY,'300')}" style="width:55px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;text-align:center">
-                    <span style="font-size:11px">秒</span>
-                </div>
-                <div id="lh5-farm-status" style="font-size:11px;color:#666;margin-top:6px;">監控中 (MP < ${low}%回大廳, > ${high}%前往 ${zoneName})</div>
-                <button id="lh5-farm-toggle" style="margin-top:8px;width:100%;padding:6px 0;border:none;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;transition:background .2s;background:#22c55e;color:#fff">▶ 運行</button>
-            </div>`;
-        }
-        document.getElementById('lh5-modal-body').innerHTML = html;
-        document.querySelectorAll('#lh5-modal-body .lh5-toggle input[type="checkbox"]').forEach(cb => {
+            const rows = document.querySelectorAll('#lh5-modal-body .lh5-switch-row');
+            for (const row of rows) {
+                const cb = row.querySelector('input[data-key="nameChange"]');
+                if (cb) {
+                    const wrap = document.createElement('div');
+                    wrap.style.cssText = 'display:flex;gap:6px;margin-top:6px;width:100%';
+                    const inp = document.createElement('input');
+                    inp.id = 'lh5-name-input'; inp.type = 'text'; inp.maxLength = 12;
+                    inp.placeholder = '輸入自訂名稱…'; inp.value = curName;
+                    inp.style.cssText = 'flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:4px 8px;color:#e0d5c1;font-size:12px;outline:none;min-width:0';
+                    const btn = document.createElement('button');
+                    btn.id = 'lh5-name-apply'; btn.textContent = '套用';
+                    btn.style.cssText = 'padding:4px 12px;border:none;border-radius:4px;background:#c8a96e;color:#1a1a2e;font-size:12px;cursor:pointer;font-weight:bold;flex-shrink:0';
+                    wrap.appendChild(inp); wrap.appendChild(btn);
+                    row.appendChild(wrap);
+                    const apply = () => {
+                        const v = inp.value.trim();
+                        if (v) { localStorage.setItem(NAME_KEY, v); const el = document.getElementById('t-name'); if (el) el.textContent = v; }
+                    };
+                    btn.addEventListener('click', apply);
+                    inp.addEventListener('keydown', e => { if (e.key === 'Enter') apply(); });
+                    break;
+                }
+            }
+        }        document.querySelectorAll('#lh5-modal-body .lh5-toggle input[type="checkbox"]').forEach(cb => {
             cb.addEventListener('change', () => {
                 const k = cb.dataset.key, s2 = loadSettings(); s2[k] = cb.checked; saveSettings(s2);
                 renderSettings();
                 applyFeature(k, cb.checked);
             });
         });
-        const nameInp = document.getElementById('lh5-name-input');
-        const nameBtn = document.getElementById('lh5-name-apply');
-        if (nameInp && nameBtn) {
-            const apply = () => {
-                const v = nameInp.value.trim();
-                if (v) {
-                    localStorage.setItem(NAME_KEY, v);
-                    const el = document.getElementById('t-name');
-                    if (el) el.textContent = v;
-                }
-            };
-            nameBtn.addEventListener('click', apply);
-            nameInp.addEventListener('keydown', e => { if (e.key === 'Enter') apply(); });
-        }
+
         // 🤖 掛機設定連動
         const farmLow = document.getElementById('lh5-farm-low');
         const farmHigh = document.getElementById('lh5-farm-high');
@@ -376,7 +339,7 @@
                     // 如果選中的被隱藏，自動選第一個可見的
                     if (farmZone.selectedOptions[0]?.hidden) {
                         const firstVisible = Array.from(farmZone.options).find(o => !o.hidden);
-                        if (firstVisible) firstVisible.selected = true;
+                        if (firstVisible) { firstVisible.selected = true; saveFarm(); }
                     }
                 });
             }
@@ -396,6 +359,7 @@
             farmLow.addEventListener('input', saveFarm);
             farmHigh.addEventListener('input', saveFarm);
             farmZone.addEventListener('change', saveFarm);
+            farmZone.addEventListener('click', saveFarm);
         }
         // 斷線重連設定存檔
         const farmSlot = document.getElementById('lh5-farm-slot');
