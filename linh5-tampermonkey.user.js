@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.08
+// @version      2.09
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -19,9 +19,55 @@
     //  ⚙ 設定 + localStorage
     // ============================================================
     const STORAGE_KEY = 'lh5_settings';
-    const DEFAULTS = { bossPinAlive: true, bagSearch: true, nameChange: false };
+    const DEFAULTS = { bossPinAlive: true, bagSearch: true, nameChange: false, autoFarm: false };
     const PINNED_KEY = 'lh5_pinned_bosses';
     const NAME_KEY = 'lh5_custom_name';
+    const FARM_LOW_KEY = 'lh5_farm_mp_low';
+    const FARM_HIGH_KEY = 'lh5_farm_mp_high';
+    const FARM_ZONE_KEY = 'lh5_farm_zone';
+
+    const FARM_ZONES = [
+        { id: 'zone_06', name: '古魯丁地監1樓' },
+        { id: 'zone_07', name: '古魯丁地監2樓' },
+        { id: 'zone_08', name: '古魯丁地監3樓' },
+        { id: 'zone_09', name: '古魯丁地監4樓' },
+        { id: 'zone_10', name: '古魯丁地監5樓' },
+        { id: 'zone_11', name: '古魯丁地監6樓' },
+        { id: 'zone_12', name: '古魯丁地監7樓' },
+        { id: 'zone_13', name: '說話之島地監1樓' },
+        { id: 'zone_14', name: '說話之島地監2樓' },
+        { id: 'zone_15', name: '眠龍洞穴1樓' },
+        { id: 'zone_16', name: '眠龍洞穴2樓' },
+        { id: 'zone_17', name: '眠龍洞穴3樓' },
+        { id: 'crystal_cave1', name: '水晶洞穴1樓' },
+        { id: 'crystal_cave2', name: '水晶洞穴2樓' },
+        { id: 'crystal_cave3', name: '水晶洞穴3樓' },
+        { id: 'zone_18', name: '奇岩地監1樓' },
+        { id: 'zone_19', name: '奇岩地監2樓' },
+        { id: 'zone_20', name: '奇岩地監3樓' },
+        { id: 'zone_21', name: '奇岩地監4樓' },
+        { id: 'zone_22', name: '沙漠地監1樓' },
+        { id: 'zone_23', name: '沙漠地監2樓' },
+        { id: 'zone_24', name: '沙漠地監3樓' },
+        { id: 'zone_25', name: '沙漠地監4樓' },
+        { id: 'zone_26', name: '龍之谷地監1樓' },
+        { id: 'zone_27', name: '龍之谷地監2樓' },
+        { id: 'zone_28', name: '龍之谷地監3樓' },
+        { id: 'zone_29', name: '龍之谷地監4樓' },
+        { id: 'zone_30', name: '龍之谷地監5樓' },
+        { id: 'zone_31', name: '龍之谷地監6樓' },
+        { id: 'zone_32', name: '螞蟻洞窟1樓' },
+        { id: 'zone_33', name: '螞蟻洞窟2樓' },
+        { id: 'zone_34', name: '地下通道1樓' },
+        { id: 'zone_35', name: '地下通道2樓' },
+        { id: 'zone_36', name: '地下通道3樓' },
+        { id: 'eva_kingdom', name: '伊娃王國' },
+        { id: 'zone_37', name: '象牙塔4樓' },
+        { id: 'zone_38', name: '象牙塔5樓' },
+        { id: 'zone_39', name: '象牙塔6樓' },
+        { id: 'zone_40', name: '象牙塔7樓' },
+        { id: 'zone_41', name: '象牙塔8樓' },
+    ];
 
     function loadSettings() {
         try { const r = GM_getValue(STORAGE_KEY, null); if (r) return { ...DEFAULTS, ...JSON.parse(r) }; } catch (_) {}
@@ -125,7 +171,7 @@
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.08 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
+    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.09 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -139,7 +185,11 @@
         { key: 'bagSearch', label: '背包物品檢索', desc: '在背包上方新增搜尋框與 +4~+10 強化篩選下拉' },
         { key: 'tradeMoneySearch', label: '交易所金錢搜尋', desc: '在交易所新增金額模糊搜尋 + 價格簡寫' },
         { key: 'nameChange', label: '變更姓名', desc: '自訂顯示名稱（不影響伺服器）' },
+        { key: 'autoFarm', label: '🤖 掛機腳本', desc: 'MP過低自動回大廳，MP足夠自動前往地圖掛機' },
     ];
+    function getStored(key, def) {
+        try { const r = localStorage.getItem(key); return r !== null ? r : def; } catch (_) { return def; }
+    }
     function renderSettings() {
         const s = loadSettings();
         let html = SETTINGS_DEF.map(d => {
@@ -150,6 +200,33 @@
         if (s.nameChange) {
             const curName = localStorage.getItem(NAME_KEY) || '';
             html += `<div class="lh5-name-input-row"><input id="lh5-name-input" type="text" maxlength="12" placeholder="輸入自訂名稱…" value="${curName.replace(/"/g,'&quot;')}"><button id="lh5-name-apply">套用</button></div>`;
+        }
+        // 🤖 掛機腳本設定
+        if (s.autoFarm) {
+            const low = localStorage.getItem(FARM_LOW_KEY) || '10';
+            const high = localStorage.getItem(FARM_HIGH_KEY) || '80';
+            const zone = localStorage.getItem(FARM_ZONE_KEY) || 'zone_07';
+            const zoneName = FARM_ZONES.find(z => z.id === zone)?.name || '古魯丁地監2樓';
+            html += `<div style="margin-top:8px;padding:10px;background:#12121e;border-radius:8px">
+                <div style="font-size:13px;color:#c8a96e;margin-bottom:8px">🤖 掛機設定</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#ccc">
+                    <span>MP <：</span>
+                    <input id="lh5-farm-low" type="number" min="1" max="99" value="${low}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                    <span>% 回大廳</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#ccc">
+                    <span>MP >：</span>
+                    <input id="lh5-farm-high" type="number" min="1" max="99" value="${high}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                    <span>% 出發掛機</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#ccc">
+                    <span>地圖：</span>
+                    <select id="lh5-farm-zone" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
+                        ${FARM_ZONES.map(z => `<option value="${z.id}"${z.id===zone?' selected':''}>${z.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div id="lh5-farm-status" style="font-size:11px;color:#666;margin-top:6px;">監控中 (MP < ${low}%回大廳, > ${high}%前往 ${zoneName})</div>
+            </div>`;
         }
         document.getElementById('lh5-modal-body').innerHTML = html;
         document.querySelectorAll('#lh5-modal-body .lh5-toggle input[type="checkbox"]').forEach(cb => {
@@ -172,6 +249,28 @@
             };
             nameBtn.addEventListener('click', apply);
             nameInp.addEventListener('keydown', e => { if (e.key === 'Enter') apply(); });
+        }
+        // 🤖 掛機設定連動
+        const farmLow = document.getElementById('lh5-farm-low');
+        const farmHigh = document.getElementById('lh5-farm-high');
+        const farmZone = document.getElementById('lh5-farm-zone');
+        if (farmLow && farmHigh && farmZone) {
+            const saveFarm = () => {
+                const l = parseInt(farmLow.value, 10);
+                const h = parseInt(farmHigh.value, 10);
+                if (!isNaN(l) && l >= 1 && l <= 99) localStorage.setItem(FARM_LOW_KEY, String(l));
+                if (!isNaN(h) && h >= 1 && h <= 99) localStorage.setItem(FARM_HIGH_KEY, String(h));
+                localStorage.setItem(FARM_ZONE_KEY, farmZone.value);
+                // 更新狀態列
+                const st = document.getElementById('lh5-farm-status');
+                if (st) {
+                    const zn = FARM_ZONES.find(z => z.id === farmZone.value)?.name || '';
+                    st.textContent = `監控中 (MP < ${farmLow.value}%回大廳, > ${farmHigh.value}%前往 ${zn})`;
+                }
+            };
+            farmLow.addEventListener('input', saveFarm);
+            farmHigh.addEventListener('input', saveFarm);
+            farmZone.addEventListener('change', saveFarm);
         }
     }
 
@@ -564,7 +663,149 @@
         return { tryStart, disable };
     })();
 
+    // ============================================================
+    //  🤖 掛機腳本功能
+    // ============================================================
+    const autoFarmFeature = (function () {
+        let timer = null;
+        let _enabled = false;
+        let _mpLow = 10;
+        let _mpHigh = 80;
+        let _targetZone = 'zone_07';
+        let _isResting = false; // 是否正在回MP狀態
 
+        function loadConfig() {
+            try {
+                _mpLow = parseInt(localStorage.getItem(FARM_LOW_KEY), 10) || 10;
+                _mpHigh = parseInt(localStorage.getItem(FARM_HIGH_KEY), 10) || 80;
+                _targetZone = localStorage.getItem(FARM_ZONE_KEY) || 'zone_07';
+            } catch (_) {}
+            _mpLow = Math.max(1, Math.min(99, _mpLow));
+            _mpHigh = Math.max(1, Math.min(99, _mpHigh));
+        }
+
+        function getMPPercent() {
+            const bar = document.getElementById('p-mp');
+            if (!bar) return 100;
+            const w = bar.style.width;
+            if (!w) return 100;
+            return parseFloat(w) || 100;
+        }
+
+        function getCurrentZoneName() {
+            const el = document.getElementById('zone-name');
+            if (!el) return '';
+            return el.textContent.trim();
+        }
+
+        function getTargetZoneName() {
+            const z = FARM_ZONES.find(x => x.id === _targetZone);
+            return z ? z.name : '';
+        }
+
+        function clickElement(el) {
+            if (!el) return;
+            if (typeof el.click === 'function') el.click();
+            // 也試試 dispatchEvent
+            try {
+                el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            } catch (_) {}
+        }
+
+        // 回大廳
+        function goLobby() {
+            const btn = document.getElementById('btn-lobby');
+            if (btn) clickElement(btn);
+        }
+
+        // 切到目標地圖並攻擊
+        function goToZone() {
+            const zoneName = getTargetZoneName();
+            if (!zoneName) return;
+
+            // 1. 先點「地監」subtab
+            const subtabs = document.querySelectorAll('.subtab');
+            for (const st of subtabs) {
+                const dc = st.getAttribute('data-c');
+                if (dc === 'dungeon') { clickElement(st); break; }
+            }
+
+            // 2. 等一幀後找目標 zone-item 並點擊
+            setTimeout(() => {
+                const panel = document.getElementById('panel-scroll');
+                if (!panel) return;
+                const items = panel.querySelectorAll(':scope > .zone-item');
+                for (const item of items) {
+                    if (item.getAttribute('data-zone') === _targetZone) {
+                        clickElement(item);
+                        break;
+                    }
+                }
+            }, 100);
+
+            // 3. 再等一幀後檢查是否正確切換
+            setTimeout(() => {
+                const current = getCurrentZoneName();
+                if (current === zoneName) {
+                    // 正確→點攻擊
+                    const atk = document.getElementById('btn-attack');
+                    if (atk && !atk.classList.contains('hidden')) clickElement(atk);
+                } else {
+                    // 不在該地圖→已經點過zone-item了，但可能沒反應，再試一次
+                    const panel = document.getElementById('panel-scroll');
+                    if (!panel) return;
+                    const items = panel.querySelectorAll(':scope > .zone-item');
+                    for (const item of items) {
+                        if (item.getAttribute('data-zone') === _targetZone) {
+                            clickElement(item);
+                            break;
+                        }
+                    }
+                }
+            }, 300);
+        }
+
+        function tick() {
+            if (!_enabled) return;
+            loadConfig();
+
+            const mp = getMPPercent();
+            const zoneName = getCurrentZoneName();
+            const targetName = getTargetZoneName();
+
+            if (mp < _mpLow) {
+                // MP太低→回大廳休息
+                if (!_isResting) {
+                    _isResting = true;
+                    goLobby();
+                }
+            } else if (mp > _mpHigh) {
+                // MP足夠→如果正在休息狀態→出發掛機
+                if (_isResting || targetName && zoneName !== targetName) {
+                    _isResting = false;
+                    goToZone();
+                }
+            }
+            // 在中間區間：不做任何事，維持現狀
+        }
+
+        function tryStart() {
+            _enabled = true;
+            loadConfig();
+            _isResting = false;
+            if (timer) { clearInterval(timer); timer = null; }
+            timer = setInterval(tick, 2000);
+            return true;
+        }
+
+        function disable() {
+            _enabled = false;
+            if (timer) { clearInterval(timer); timer = null; }
+            _isResting = false;
+        }
+
+        return { tryStart, disable };
+    })();
 
     // ============================================================
     //  🔧 開關控制 + 名稱功能
@@ -574,6 +815,7 @@
         if (k === 'bagSearch') { if (en) bagFeature.tryStart(); else bagFeature.disable(); }
         if (k === 'tradeMoneySearch') { if (en) tradeMoneyFeature.tryStart(); else tradeMoneyFeature.disable(); }
         if (k === 'nameChange') { nameFeature(en); }
+        if (k === 'autoFarm') { if (en) autoFarmFeature.tryStart(); else autoFarmFeature.disable(); }
     }
     function initFeatures() { const s = loadSettings(); SETTINGS_DEF.forEach(d => applyFeature(d.key, s[d.key])); }
 
@@ -639,6 +881,7 @@
             if (s.bossPinAlive) { bossFeature.disable(); bossFeature.tryStart(); }
             if (s.bagSearch) { bagFeature.disable(); bagFeature.tryStart(); }
             if (s.tradeMoneySearch) { tradeMoneyFeature.disable(); tradeMoneyFeature.tryStart(); }
+            if (s.autoFarm) { autoFarmFeature.disable(); autoFarmFeature.tryStart(); }
 
         }
 
