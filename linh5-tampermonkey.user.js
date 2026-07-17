@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.10
+// @version      2.11
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -93,10 +93,28 @@
             display:inline-flex;align-items:center;justify-content:center;
             width:32px;height:32px;cursor:pointer;border-radius:6px;
             background:rgba(255,255,255,0.08);font-size:18px;color:#c8a96e;
-            transition:background .2s,transform .2s;user-select:none;
+            transition:background .2s;user-select:none;
             margin-left:6px;flex-shrink:0;vertical-align:middle;
+            position:relative;
         }
-        #lh5-settings-btn:hover { background:rgba(255,255,255,0.18); transform:rotate(30deg); }
+        #lh5-settings-btn.lh5-running {
+            box-shadow: 0 0 6px rgba(34,197,94,0.6);
+            color:#22c55e;
+        }
+        #lh5-settings-btn.lh5-running::before {
+            content:'';
+            position:absolute;
+            inset:-2px;
+            border-radius:8px;
+            border:2px solid transparent;
+            border-top-color:#22c55e;
+            border-right-color:#22c55e;
+            animation:lh5-spin 1s linear infinite;
+        }
+        @keyframes lh5-spin {
+            to { transform:rotate(360deg); }
+        }
+        #lh5-settings-btn:hover { background:rgba(255,255,255,0.18); }
         #lh5-modal-overlay {
             position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.6);
             display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px);
@@ -171,7 +189,7 @@
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.10 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
+    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.11 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -226,6 +244,7 @@
                     </select>
                 </div>
                 <div id="lh5-farm-status" style="font-size:11px;color:#666;margin-top:6px;">監控中 (MP < ${low}%回大廳, > ${high}%前往 ${zoneName})</div>
+                <button id="lh5-farm-toggle" style="margin-top:8px;width:100%;padding:6px 0;border:none;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;transition:background .2s;background:#22c55e;color:#fff">▶ 運行</button>
             </div>`;
         }
         document.getElementById('lh5-modal-body').innerHTML = html;
@@ -271,6 +290,21 @@
             farmLow.addEventListener('input', saveFarm);
             farmHigh.addEventListener('input', saveFarm);
             farmZone.addEventListener('change', saveFarm);
+        }
+        // 運行/停止按鈕
+        const toggleBtn = document.getElementById('lh5-farm-toggle');
+        if (toggleBtn) {
+            const isRunning = autoFarmFeature.isRunning();
+            toggleBtn.textContent = isRunning ? '■ 停止' : '▶ 運行';
+            toggleBtn.style.background = isRunning ? '#e04040' : '#22c55e';
+            toggleBtn.addEventListener('click', () => {
+                if (autoFarmFeature.isRunning()) {
+                    autoFarmFeature.stop();
+                } else {
+                    autoFarmFeature.runWithConfig();
+                }
+                renderSettings();
+            });
         }
     }
 
@@ -798,22 +832,38 @@
             // 在中間區間：不做任何事，維持現狀
         }
 
-        function tryStart() {
-            _enabled = true;
+        function runWithConfig() {
             loadConfig();
+            _enabled = true;
             _isResting = false;
             if (timer) { clearInterval(timer); timer = null; }
             timer = setInterval(tick, 2000);
+            // 齒輪動畫
+            const gb = document.getElementById('lh5-settings-btn');
+            if (gb) gb.classList.add('lh5-running');
+        }
+
+        function tryStart() {
+            runWithConfig();
             return true;
         }
 
-        function disable() {
+        function stop() {
             _enabled = false;
             if (timer) { clearInterval(timer); timer = null; }
             _isResting = false;
+            // 移除齒輪動畫
+            const gb = document.getElementById('lh5-settings-btn');
+            if (gb) gb.classList.remove('lh5-running');
         }
 
-        return { tryStart, disable };
+        function disable() {
+            stop();
+        }
+
+        function isRunning() { return _enabled; }
+
+        return { tryStart, disable, runWithConfig, stop, isRunning };
     })();
 
     // ============================================================
@@ -824,7 +874,7 @@
         if (k === 'bagSearch') { if (en) bagFeature.tryStart(); else bagFeature.disable(); }
         if (k === 'tradeMoneySearch') { if (en) tradeMoneyFeature.tryStart(); else tradeMoneyFeature.disable(); }
         if (k === 'nameChange') { nameFeature(en); }
-        if (k === 'autoFarm') { if (en) autoFarmFeature.tryStart(); else autoFarmFeature.disable(); }
+        if (k === 'autoFarm') { if (!en) autoFarmFeature.stop(); }
     }
     function initFeatures() { const s = loadSettings(); SETTINGS_DEF.forEach(d => applyFeature(d.key, s[d.key])); }
 
@@ -890,7 +940,14 @@
             if (s.bossPinAlive) { bossFeature.disable(); bossFeature.tryStart(); }
             if (s.bagSearch) { bagFeature.disable(); bagFeature.tryStart(); }
             if (s.tradeMoneySearch) { tradeMoneyFeature.disable(); tradeMoneyFeature.tryStart(); }
-            if (s.autoFarm) { autoFarmFeature.disable(); autoFarmFeature.tryStart(); }
+            // autoFarm：不自動重啟，只恢復齒輪動畫
+            if (s.autoFarm && autoFarmFeature.isRunning()) {
+                autoFarmFeature.stop();
+                autoFarmFeature.runWithConfig();
+            } else if (autoFarmFeature.isRunning()) {
+                // 開關關了但還在跑→停掉
+                autoFarmFeature.stop();
+            }
 
         }
 
