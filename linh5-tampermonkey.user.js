@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.38
+// @version      2.39
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1562,12 +1562,14 @@
                 // 完整列印怪物血條（如果有）
                 if (ls.monsters && ls.monsters.length) {
                     ls.monsters.forEach((m, i) => {
+                        if (!m) return;
                         console.log('[LH5]   🐛 怪[' + i + ']:', m.name || '?', 'HP:', m.hp !== undefined ? m.hp + '/' + m.maxHp : '?', 'Lv:' + (m.lv || '?'));
                     });
                 }
                 // 完整列印玩家血條
                 if (ls.players && ls.players.length) {
                     ls.players.forEach((p, i) => {
+                        if (!p) return;
                         console.log('[LH5]   👤 玩家[' + i + ']:', p.name || '?', 'HP:', p.hp !== undefined ? p.hp + '/' + p.maxHp : '?');
                     });
                 }
