@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.26
+// @version      2.27
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1253,7 +1253,8 @@
         // 倒數 UI 每秒更新
         setInterval(() => {
             const h2 = document.querySelector('h2');
-            if (h2 && h2.textContent.trim() === '選 擇 角 色') {
+            const h2txt = h2 ? h2.textContent.trim() : '';
+            if (h2 && h2txt.startsWith('選 擇 角 色')) {
                 let cd = h2.querySelector('.lh5-afk-cd');
                 if (!cd) { cd = document.createElement('span'); cd.className = 'lh5-afk-cd'; cd.style.cssText = 'color:#ff6b6b;font-size:16px;margin-left:10px;font-weight:bold'; h2.appendChild(cd); }
                 cd.textContent = `(${_afkCountdown}s 後自動點擊)`;
@@ -1272,14 +1273,20 @@
             if (btn && btn.offsetParent !== null) { btn.click(); return; }
             // 2. 選擇角色畫面（斷線倒數重連中）
             const h2 = document.querySelector('h2');
-            if (h2 && h2.textContent.trim() === '選 擇 角 色') {
+            const h2txt2 = h2 ? h2.textContent.trim() : '';
+            if (h2 && h2txt2.startsWith('選 擇 角 色')) {
                 const slots = document.getElementById('slots');
                 if (slots) {
                     const charSlots = slots.querySelectorAll(':scope > .char-slot');
                     const slotIdx = parseInt(localStorage.getItem('lh5_farm_slot'), 10) || 0;
                     if (charSlots.length > slotIdx) {
                         const target = charSlots[slotIdx];
-                        if (target && !target.querySelector('.empty')) target.click();
+                        if (target && !target.querySelector('.empty')) {
+                            // 雙重觸發：click + mousedown（遊戲可能只聽 mousedown）
+                            if (typeof target.click === 'function') target.click();
+                            try { target.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch(_){}
+                            try { target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); } catch(_){}
+                        }
                     }
                 }
             }
