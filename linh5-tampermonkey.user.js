@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.37
+// @version      2.38
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1489,33 +1489,24 @@
     let _lh5SockPatched = false;
     function interceptSocketLog() {
         if (_lh5SockPatched) return;
-        // socket 可能延遲建立，持續檢查
         const check = setInterval(() => {
             if (typeof socket === 'undefined' || !socket || typeof socket.emit !== 'function') return;
             clearInterval(check);
             if (_lh5SockPatched) return;
             _lh5SockPatched = true;
 
-            const origEmit = socket.emit.bind(socket);
-            socket.emit = function(ev, data, cb) {
-                console.log('[LH5] 📤 emit:', ev, data !== undefined ? data : '');
-                return origEmit(ev, data, cb);
-            };
+            console.log('[LH5] socket.io 版本:', socket.io?.engine?.transport?.name || socket.transport?.name || '未知');
 
-            const origOn = socket.on.bind(socket);
-            socket.on = function(ev, fn) {
-                const wrapped = function() {
-                    const args = Array.from(arguments);
-                    const payload = args.length > 0 ? (args.length === 1 ? args[0] : args) : '';
-                    console.log('[LH5] 📥 on:', ev, payload);
-                    return fn.apply(this, arguments);
-                };
-                return origOn(ev, wrapped);
-            };
+            // socket.onAny (socket.io v3+)
+            if (typeof socket.onAny === 'function') {
+                socket.onAny((ev, ...args) => {
+                    const len = args.length;
+                    console.log('[LH5] 📥 onAny:', ev, len === 0 ? '' : (len === 1 ? args[0] : args));
+                });
+                console.log('[LH5] ✅ onAny 攔截啟動');
+            }
 
-            console.log('[LH5] ✅ Socket 日誌攔截已啟動 — 所有 emit/on 將顯示在主控台');
-
-            // onevent（socket.io 內部 routing — 攔截所有 incoming）
+            // onevent (socket.io v2 fallback)
             const origOnevent = socket.onevent?.bind(socket);
             if (origOnevent) {
                 socket.onevent = function(packet) {
@@ -1524,7 +1515,65 @@
                     }
                     return origOnevent(packet);
                 };
+                console.log('[LH5] ✅ onevent 攔截啟動');
+            } else {
+                // 連 onevent 都沒有，直接攔截 _callbacks
+                console.log('[LH5] ⚠️ 無 onevent, 改用 _callbacks 攔截');
+                const origCallbacks = socket._callbacks;
+                if (origCallbacks) {
+                    for (const key of Object.keys(origCallbacks)) {
+                        const ev = key.replace(/^\$/, '');
+                        const fns = origCallbacks[key];
+                        if (Array.isArray(fns)) {
+                            origCallbacks[key] = fns.map(fn => {
+                                const wrapped = function() {
+                                    const args = Array.from(arguments);
+                                    console.log('[LH5] 📥 cb:', ev, args.length === 0 ? '' : (args.length === 1 ? args[0] : args));
+                                    return fn.apply(this, arguments);
+                                };
+                                return wrapped;
+                            });
+                        }
+                    }
+                }
             }
+
+            // emit 攔截
+            const origEmit = socket.emit.bind(socket);
+            socket.emit = function(ev, data, cb) {
+                console.log('[LH5] 📤 emit:', ev, data !== undefined ? data : '');
+                return origEmit(ev, data, cb);
+            };
+
+            // lastState 輪詢（每秒印一次狀態摘要）
+            setInterval(() => {
+                if (typeof lastState === 'undefined' || !lastState) return;
+                const ls = lastState;
+                const summary = [];
+                if (ls.hp !== undefined && ls.maxHp !== undefined) summary.push('HP:' + ls.hp + '/' + ls.maxHp);
+                if (ls.mp !== undefined && ls.maxMp !== undefined) summary.push('MP:' + ls.mp + '/' + ls.maxMp);
+                if (ls.monsters && Array.isArray(ls.monsters)) summary.push('怪:' + ls.monsters.length + '隻');
+                if (ls.players && Array.isArray(ls.players)) summary.push('玩家:' + ls.players.length + '人');
+                if (ls.gold !== undefined) summary.push('金幣:' + ls.gold);
+                if (ls.xp !== undefined) summary.push('經驗:' + ls.xp);
+                if (ls.party && Array.isArray(ls.party)) summary.push('組隊:' + ls.party.length + '人');
+                console.log('[LH5] 📊 lastState:', summary.join(' | '), summary.length ? '' : '(無遊戲狀態)');
+
+                // 完整列印怪物血條（如果有）
+                if (ls.monsters && ls.monsters.length) {
+                    ls.monsters.forEach((m, i) => {
+                        console.log('[LH5]   🐛 怪[' + i + ']:', m.name || '?', 'HP:', m.hp !== undefined ? m.hp + '/' + m.maxHp : '?', 'Lv:' + (m.lv || '?'));
+                    });
+                }
+                // 完整列印玩家血條
+                if (ls.players && ls.players.length) {
+                    ls.players.forEach((p, i) => {
+                        console.log('[LH5]   👤 玩家[' + i + ']:', p.name || '?', 'HP:', p.hp !== undefined ? p.hp + '/' + p.maxHp : '?');
+                    });
+                }
+            }, 2000);
+
+            console.log('[LH5] ✅ 全部攔截已啟動');
         }, 500);
     }
 
