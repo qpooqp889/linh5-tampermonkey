@@ -32,6 +32,8 @@
     const FARM_HP_LOW_KEY = 'lh5_farm_hp_low';
     const FARM_HP_HIGH_KEY = 'lh5_farm_hp_high';
     const FARM_LOBBY_MODE_KEY = 'lh5_farm_lobby_mode';
+    const FARM_LOBBY_WEAPON_KEY = 'lh5_farm_lobby_weapon';
+    const FARM_ZONE_WEAPON_KEY = 'lh5_farm_zone_weapon';
 
     const FARM_ZONES = [
         // ── 野外 ──
@@ -344,6 +346,9 @@
                 if (cb) {
                     const wrapper = document.createElement('div');
                     wrapper.style.cssText = 'margin-top:8px;width:100%';
+                    const weapons = scanWeapons();
+                    const lobbyWpn = localStorage.getItem(FARM_LOBBY_WEAPON_KEY) || '';
+                    const zoneWpn = localStorage.getItem(FARM_ZONE_WEAPON_KEY) || '';
                     const mkChk = (key, label, checked) =>
                         `<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:#aaa;user-select:none;margin-right:8px"><input type="checkbox" data-farm-cb="${key}" ${checked?'checked':''} style="accent-color:#c8a96e"> ${label}</label>`;
                     wrapper.innerHTML = `
@@ -378,6 +383,18 @@
                                 <select id="lh5-farm-lobby-mode" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
                                     <option value="toLobby" selected>🏠 回大廳（socket.emit('toLobby')）</option>
 
+                                </select>
+                            </div>
+                            <div style="margin-top:8px;padding:6px;background:#15152a;border-radius:6px;font-size:12px;color:#aaa">
+                                <div style="margin-bottom:4px">🔫 回大廳裝備：</div>
+                                <select id="lh5-farm-lobby-weapon" style="width:100%;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
+                                    <option value="">-- 不換武 --</option>
+                                    ${weapons.map(w => `<option value="${w.idx}"${lobbyWpn === String(w.idx) ? ' selected' : ''}>${w.name}</option>`).join('')}
+                                </select>
+                                <div style="margin-top:4px;margin-bottom:4px">🔫 出發前裝備：</div>
+                                <select id="lh5-farm-zone-weapon" style="width:100%;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
+                                    <option value="">-- 不換武 --</option>
+                                    ${weapons.map(w => `<option value="${w.idx}"${zoneWpn === String(w.idx) ? ' selected' : ''}>${w.name}</option>`).join('')}
                                 </select>
                             </div>
                             <div id="lh5-farm-status" style="font-size:11px;color:#666;margin-top:6px;">監控中 (MP < ${farmLowVal}% / HP < ${hpLowVal}% 回大廳, > ${farmHighVal}% / > ${hpHighVal}% 出發 ${farmZoneName})</div>
@@ -455,6 +472,8 @@
                 if (hpLowEl) { const v = parseInt(hpLowEl.value,10); if (!isNaN(v)&&v>=1&&v<=99) localStorage.setItem(FARM_HP_LOW_KEY, String(v)); }
                 if (hpHighEl) { const v = parseInt(hpHighEl.value,10); if (!isNaN(v)&&v>=1&&v<=99) localStorage.setItem(FARM_HP_HIGH_KEY, String(v)); }
 
+                localStorage.setItem(FARM_LOBBY_WEAPON_KEY, document.getElementById('lh5-farm-lobby-weapon')?.value || '');
+                localStorage.setItem(FARM_ZONE_WEAPON_KEY, document.getElementById('lh5-farm-zone-weapon')?.value || '');
                 // 更新狀態列
                 const st = document.getElementById('lh5-farm-status');
                 if (st) {
@@ -889,6 +908,22 @@
     // ============================================================
     //  🤖 掛機腳本功能
     // ============================================================
+        function scanWeapons() {
+        try {
+            const inv = window.lastState && window.lastState.inv;
+            if (!inv || !Array.isArray(inv)) return [];
+            return inv
+                .map((it, i) => ({ idx: i, item: it }))
+                .filter(x => x.item && x.item.cat === 'wpn')
+                .map(x => ({
+                    idx: x.idx,
+                    name: (x.item.n || '??') + (x.item.en != null && x.item.en > 0 ? ' [+' + x.item.en + ']' : '') + ' (index: ' + x.idx + ')',
+                    rawName: x.item.n || '??',
+                    en: x.item.en || 0,
+                }));
+        } catch(e) { return []; }
+    }
+
     const autoFarmFeature = (function () {
         let timer = null;
         let _enabled = false;
@@ -966,7 +1001,13 @@
         // 回大廳/選角（依設定選擇封包）
         // 注意：selectChar 可直接在遊戲中發送，伺服器處理重生回銀騎士+滿血滿魔
         function goLobby() {
-            _emitSocket('toLobby');
+            const weaponIdx = localStorage.getItem(FARM_LOBBY_WEAPON_KEY);
+            if (weaponIdx) {
+                _emitSocket('equip', parseInt(weaponIdx, 10));
+                setTimeout(() => _emitSocket('toLobby'), 500);
+            } else {
+                _emitSocket('toLobby');
+            }
         }
 
         // 傳送到目標地圖並自動攻擊（直接封包，不再靠 DOM 點擊流程）
@@ -974,11 +1015,17 @@
             const zoneName = getTargetZoneName();
             if (!zoneName) return;
 
-            // Step 1: 直接封包傳送，一秒後自動攻擊
-            _emitSocket('setZone', _targetZone);
-            setTimeout(() => {
-                _emitSocket('attack');
-            }, 3000);
+            const weaponIdx = localStorage.getItem(FARM_ZONE_WEAPON_KEY);
+            const go = () => {
+                _emitSocket('setZone', _targetZone);
+                setTimeout(() => _emitSocket('attack'), 3000);
+            };
+            if (weaponIdx) {
+                _emitSocket('equip', parseInt(weaponIdx, 10));
+                setTimeout(go, 500);
+            } else {
+                go();
+            }
         }
 
         function tick() {
