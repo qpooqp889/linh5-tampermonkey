@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.31
+// @version      2.32
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -331,7 +331,7 @@
             const hpEnabled = localStorage.getItem(FARM_HP_ENABLED_KEY) === '1';
             const hpLowVal = localStorage.getItem(FARM_HP_LOW_KEY) || '30';
             const hpHighVal = localStorage.getItem(FARM_HP_HIGH_KEY) || '80';
-            const lobbyMode = localStorage.getItem(FARM_LOBBY_MODE_KEY) || 'socket';
+            const lobbyMode = localStorage.getItem(FARM_LOBBY_MODE_KEY) || 'selectChar';
             const rows = document.querySelectorAll('#lh5-modal-body .lh5-switch-row');
             for (const row of rows) {
                 const cb = row.querySelector('input[data-key="autoFarm"]');
@@ -370,8 +370,8 @@
                             <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#ccc">
                                 <span>回大廳方式：</span>
                                 <select id="lh5-farm-lobby-mode" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
-                                    <option value="socket"${lobbyMode==='socket'?' selected':''}>📡 socket.emit('toLobby')</option>
-                                    <option value="dom"${lobbyMode==='dom'?' selected':''}>🖱 DOM #btn-lobby 點擊</option>
+                                    <option value="selectChar"${lobbyMode==='selectChar'?' selected':''}>🎯 選角（socket.emit('selectChar', slot)）</option>
+                                    <option value="toLobby"${lobbyMode==='toLobby'?' selected':''}>🏠 回大廳（socket.emit('toLobby')）</option>
 
                                 </select>
                             </div>
@@ -903,7 +903,7 @@
         let _hpEnabled = false;
         let _hpLow = 30;
         let _hpHigh = 80;
-        let _lobbyMode = 'socket';
+        let _lobbyMode = 'selectChar';
 
         function loadConfig() {
             try {
@@ -914,7 +914,7 @@
                 _hpLow = parseInt(localStorage.getItem(FARM_HP_LOW_KEY), 10) || 30;
                 _hpHigh = parseInt(localStorage.getItem(FARM_HP_HIGH_KEY), 10) || 80;
                 _targetZone = localStorage.getItem(FARM_ZONE_KEY) || 'zone_07';
-                _lobbyMode = localStorage.getItem(FARM_LOBBY_MODE_KEY) || 'socket';
+                _lobbyMode = localStorage.getItem(FARM_LOBBY_MODE_KEY) || 'selectChar';
                 _reconnectSlot = parseInt(localStorage.getItem(FARM_SLOT_KEY), 10) || 0;
                 _reconnectSec = parseInt(localStorage.getItem(FARM_RECONNECT_KEY), 10) || 300;
                 if (_reconnectSlot < 0 || _reconnectSlot > 2) _reconnectSlot = 0;
@@ -962,15 +962,13 @@
             } catch(_) {}
         }
 
-        // 回大廳（依設定選擇封包或 DOM 點擊）
+        // 回大廳/選角（依設定選擇封包）
         function goLobby() {
-            if (_lobbyMode === 'dom') {
-                const btn = document.getElementById('btn-lobby');
-                if (btn) {
-                    if (typeof btn.click === 'function') btn.click();
-                    try { btn.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch(_){}
-                }
+            if (_lobbyMode === 'selectChar') {
+                // 只發 selectChar → 直接選角進場，滿血滿魔
+                _emitSocket('selectChar', _reconnectSlot);
             } else {
+                // 只發 toLobby → 回大廳
                 _emitSocket('toLobby');
             }
         }
