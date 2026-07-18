@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.36
+// @version      2.37
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1174,6 +1174,15 @@
             <input id="lh5-friend-search" type="text" placeholder="🔍 搜尋好友…">
             <div id="lh5-friend-list"></div>
             <div class="lh5-friend-count" id="lh5-friend-count"></div>
+            <div style="display:flex;align-items:center;gap:6px;margin:8px 0;padding:8px;background:#12121e;border-radius:6px">
+                <span style="font-size:12px;color:#8a8aff">🎯 測試選角</span>
+                <select id="lh5-sct-slot" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:4px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                </select>
+                <button id="lh5-sct-send" style="padding:4px 10px;border:none;border-radius:4px;background:#5858d0;color:#fff;font-size:12px;cursor:pointer;font-weight:bold;flex-shrink:0">發送</button>
+            </div>
             <div class="lh5-friend-toolbar">
                 <button id="lh5-friend-export">📤 匯出 JSON</button>
                 <button id="lh5-friend-import">📥 匯入 JSON</button>
@@ -1186,6 +1195,23 @@
     friendBtn.addEventListener('click', () => { renderFriendList(); friendOverlay.classList.add('open'); });
     friendOverlay.addEventListener('click', e => {
         if (e.target === friendOverlay || e.target.id === 'lh5-friend-close') friendOverlay.classList.remove('open');
+    });
+
+    // 🎯 selectChar 發送按鈕（好友 modal 內）— 用委派監聽，不怕 SPA 重建
+    friendOverlay.addEventListener('click', e => {
+        if (e.target.id === 'lh5-sct-send') {
+            const slot = parseInt(document.getElementById('lh5-sct-slot')?.value || '0', 10);
+            try {
+                if (typeof socket !== 'undefined' && socket && typeof socket.emit === 'function') {
+                    console.log('[LH5] 📤 selectChar emit -> slot:', slot);
+                    socket.emit('selectChar', slot);
+                } else {
+                    console.warn('[LH5] ❌ socket not available');
+                }
+            } catch(e) {
+                console.error('[LH5] ❌ selectChar error:', e);
+            }
+        }
     });
 
     function renderFriendList() {
@@ -1458,8 +1484,54 @@
     }
 
     // ============================================================
+    //  🔌 Socket 日誌攔截（在主控台印出 emit / on）
+    // ============================================================
+    let _lh5SockPatched = false;
+    function interceptSocketLog() {
+        if (_lh5SockPatched) return;
+        // socket 可能延遲建立，持續檢查
+        const check = setInterval(() => {
+            if (typeof socket === 'undefined' || !socket || typeof socket.emit !== 'function') return;
+            clearInterval(check);
+            if (_lh5SockPatched) return;
+            _lh5SockPatched = true;
+
+            const origEmit = socket.emit.bind(socket);
+            socket.emit = function(ev, data, cb) {
+                console.log('[LH5] 📤 emit:', ev, data !== undefined ? data : '');
+                return origEmit(ev, data, cb);
+            };
+
+            const origOn = socket.on.bind(socket);
+            socket.on = function(ev, fn) {
+                const wrapped = function() {
+                    const args = Array.from(arguments);
+                    const payload = args.length > 0 ? (args.length === 1 ? args[0] : args) : '';
+                    console.log('[LH5] 📥 on:', ev, payload);
+                    return fn.apply(this, arguments);
+                };
+                return origOn(ev, wrapped);
+            };
+
+            console.log('[LH5] ✅ Socket 日誌攔截已啟動 — 所有 emit/on 將顯示在主控台');
+
+            // onevent（socket.io 內部 routing — 攔截所有 incoming）
+            const origOnevent = socket.onevent?.bind(socket);
+            if (origOnevent) {
+                socket.onevent = function(packet) {
+                    if (packet && packet.data && packet.data.length >= 1) {
+                        console.log('[LH5] 📥 pack:', packet.data[0], packet.data.length > 1 ? packet.data.slice(1) : '');
+                    }
+                    return origOnevent(packet);
+                };
+            }
+        }, 500);
+    }
+
+    // ============================================================
     //  🏁 初始化
     // ============================================================
+    interceptSocketLog();
     mountGear();
     mountFriendBtn();
     mountSelectCharTest();
