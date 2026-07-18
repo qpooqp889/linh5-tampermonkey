@@ -34,6 +34,7 @@
     const FARM_LOBBY_MODE_KEY = 'lh5_farm_lobby_mode';
     const FARM_LOBBY_WEAPON_KEY = 'lh5_farm_lobby_weapon';
     const FARM_ZONE_WEAPON_KEY = 'lh5_farm_zone_weapon';
+    const FARM_AUTO_RUN_KEY = 'lh5_farm_auto_run';
 
     const FARM_ZONES = [
         // ── 野外 ──
@@ -337,6 +338,7 @@
             const farmZoneName = FARM_ZONES.find(z => z.id === farmZoneVal)?.name || '古魯丁地監2樓';
             const mpEnabled = localStorage.getItem(FARM_MP_ENABLED_KEY) !== '0'; // 預設 1
             const hpEnabled = localStorage.getItem(FARM_HP_ENABLED_KEY) === '1';
+            const autoRunEnabled = localStorage.getItem(FARM_AUTO_RUN_KEY) !== '0'; // 預設勾選
             const hpLowVal = localStorage.getItem(FARM_HP_LOW_KEY) || '30';
             const hpHighVal = localStorage.getItem(FARM_HP_HIGH_KEY) || '80';
             const lobbyMode = 'toLobby'; // 固定回大廳
@@ -397,11 +399,17 @@
                                     ${weapons.map(w => `<option value="${w.idx}"${zoneWpn === String(w.idx) ? ' selected' : ''}>${w.name}</option>`).join('')}
                                 </select>
                             </div>
-                            <div id="lh5-farm-status" style="font-size:11px;color:#666;margin-top:6px;">監控中 (MP < ${farmLowVal}% / HP < ${hpLowVal}% 回大廳, > ${farmHighVal}% / > ${hpHighVal}% 出發 ${farmZoneName})</div>
-                        </div>
-                    `;
-                    // 運行/停止按鈕
-                    const runBtn = document.createElement('div');
+	                            <div id="lh5-farm-status" style="font-size:11px;color:#666;margin-top:6px;">監控中 (MP < ${farmLowVal}% / HP < ${hpLowVal}% 回大廳, > ${farmHighVal}% / > ${hpHighVal}% 出發 ${farmZoneName})</div>
+	                            <div style="margin-top:8px;padding-top:8px;border-top:1px solid #2a2a3e">
+	                                <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#4ade80;user-select:none">
+	                                    <input id="lh5-farm-auto-run-cb" type="checkbox" ${autoRunEnabled?'checked':''} style="width:16px;height:16px;accent-color:#22c55e"> 
+	                                    <span>自動執行 (斷線重連或頁面重整後自動開始)</span>
+	                                </label>
+	                            </div>
+	                        </div>
+	                    `;
+	                    // 運行/停止按鈕
+	                    const runBtn = document.createElement('div');
                     runBtn.id = 'lh5-farm-run-btn';
                     runBtn.style.cssText = 'margin-top:6px;padding:8px 12px;text-align:center;border-radius:8px;font-size:13px;font-weight:bold;cursor:pointer;transition:background .2s';
                     if (autoFarmFeature.isRunning()) {
@@ -489,10 +497,17 @@
             const hpLowEl = document.getElementById('lh5-farm-hp-low');
             const hpHighEl = document.getElementById('lh5-farm-hp-high');
             if (hpLowEl) hpLowEl.addEventListener('input', saveFarm);
-            if (hpHighEl) hpHighEl.addEventListener('input', saveFarm);
+	            if (hpHighEl) hpHighEl.addEventListener('input', saveFarm);
 
-            // 打勾開關
-            document.querySelectorAll('[data-farm-cb]').forEach(cb => {
+	            const autoRunCb = document.getElementById('lh5-farm-auto-run-cb');
+	            if (autoRunCb) {
+	                autoRunCb.addEventListener('change', () => {
+	                    localStorage.setItem(FARM_AUTO_RUN_KEY, autoRunCb.checked ? '1' : '0');
+	                });
+	            }
+	
+	            // 打勾開關
+	            document.querySelectorAll('[data-farm-cb]').forEach(cb => {
                 cb.addEventListener('change', () => {
                     localStorage.setItem(cb.dataset.farmCb === 'mp' ? FARM_MP_ENABLED_KEY : FARM_HP_ENABLED_KEY, cb.checked ? '1' : '0');
                     saveFarm();
@@ -1679,14 +1694,15 @@
             if (s.bossPinAlive) { bossFeature.disable(); bossFeature.tryStart(); }
             if (s.bagSearch) { bagFeature.disable(); bagFeature.tryStart(); }
             if (s.tradeMoneySearch) { tradeMoneyFeature.disable(); tradeMoneyFeature.tryStart(); }
-            // autoFarm：不自動重啟，只恢復齒輪動畫
-            if (s.autoFarm && autoFarmFeature.isRunning()) {
-                autoFarmFeature.stop();
-                autoFarmFeature.runWithConfig();
-            } else if (autoFarmFeature.isRunning()) {
-                // 開關關了但還在跑→停掉
-                autoFarmFeature.stop();
-            }
+	            // autoFarm：根據自動執行設定決定是否重啟
+	            const autoRunEnabled = localStorage.getItem(FARM_AUTO_RUN_KEY) !== '0';
+	            if (s.autoFarm && (autoFarmFeature.isRunning() || autoRunEnabled)) {
+	                autoFarmFeature.stop();
+	                autoFarmFeature.runWithConfig();
+	            } else if (autoFarmFeature.isRunning()) {
+	                // 開關關了但還在跑→停掉
+	                autoFarmFeature.stop();
+	            }
 
         }
 
