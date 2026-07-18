@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.43
+// @version      2.44
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -252,9 +252,9 @@
         .lh5-cell-hidden { display:none!important; }
         /* ── 怪物血條 ── */
         .mslot { position:relative !important; }
-        .lh5-mhp-wrap { position:absolute;bottom:0;left:0;right:0;height:20px;background:rgba(0,0,0,0.5);border-radius:3px;z-index:5;pointer-events:none; }
-        .lh5-mhp-bar { position:absolute;bottom:0;left:0;height:5px;background:linear-gradient(90deg,#e74c3c,#ff6b6b);border-radius:0 0 3px 3px;transition:width .25s ease; }
-        .lh5-mhp-text { position:absolute;top:0;left:2px;right:2px;font-size:10px;color:#fff;text-align:center;text-shadow:0 0 3px #000;line-height:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .lh5-mhp-text { position:absolute;top:0;left:0;right:0;font-size:10px;color:#fff;text-align:center;text-shadow:0 0 4px #000, 0 0 4px #000;line-height:14px;z-index:6;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .lh5-mhp-wrap { position:absolute;bottom:0;left:0;right:0;height:5px;background:rgba(0,0,0,0.5);border-radius:0 0 3px 3px;z-index:5;pointer-events:none; }
+        .lh5-mhp-bar { height:100%;background:linear-gradient(90deg,#e74c3c,#ff6b6b);border-radius:0 0 3px 3px;transition:width .25s ease; }
         /* ── 交易所金錢搜尋 ── */
         #lh5-trade-money-wrap { display:flex;align-items:center;gap:6px;margin-bottom:8px; }
         #lh5-trade-money { flex:1;padding:8px;border-radius:8px;border:1px solid #5a4a26;background:#efe9dc;color:#2a2018;font-size:14px;outline:none; }
@@ -990,11 +990,7 @@
         // 回大廳/選角（依設定選擇封包）
         // 注意：selectChar 可直接在遊戲中發送，伺服器處理重生回銀騎士+滿血滿魔
         function goLobby() {
-            if (_lobbyMode === 'selectChar') {
-                _emitSocket('selectChar', _reconnectSlot);
-            } else {
-                _emitSocket('toLobby');
-            }
+            _emitSocket('toLobby');
         }
 
         // 傳送到目標地圖並自動攻擊（直接封包，不再靠 DOM 點擊流程）
