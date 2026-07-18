@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.41
+// @version      2.42
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -254,7 +254,7 @@
         .mslot { position:relative !important; }
         .lh5-mhp-wrap { position:absolute;bottom:0;left:2px;right:2px;height:6px;background:rgba(0,0,0,0.6);border-radius:3px;overflow:hidden;z-index:5; }
         .lh5-mhp-bar { height:100%;background:linear-gradient(90deg,#e74c3c,#ff6b6b);border-radius:3px;transition:width .25s ease; }
-        .lh5-mhp-text { position:absolute;bottom:7px;left:2px;right:2px;font-size:9px;color:#ff6b6b;text-align:center;text-shadow:0 0 3px #000;z-index:5;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .lh5-mhp-text { position:absolute;bottom:7px;left:2px;right:2px;font-size:9px;color:#fff;text-align:center;text-shadow:0 0 3px #000;z-index:5;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
         /* ── 交易所金錢搜尋 ── */
         #lh5-trade-money-wrap { display:flex;align-items:center;gap:6px;margin-bottom:8px; }
         #lh5-trade-money { flex:1;padding:8px;border-radius:8px;border:1px solid #5a4a26;background:#efe9dc;color:#2a2018;font-size:14px;outline:none; }
@@ -1595,6 +1595,13 @@
                             if (pct > 60) barEl.style.background = 'linear-gradient(90deg,#27ae60,#2ecc71)';
                             else if (pct > 30) barEl.style.background = 'linear-gradient(90deg,#f39c12,#f1c40f)';
                             else barEl.style.background = 'linear-gradient(90deg,#e74c3c,#ff6b6b)';
+                            // 血條歸0 → 清空怪物圖示 + 血條
+                            if (m.hp <= 0) {
+                                const img = slot.querySelector('img');
+                                if (img) { img.src = ''; img.removeAttribute('data-src'); }
+                                wrap.querySelector('.lh5-mhp-text').textContent = '';
+                                wrap.querySelector('.lh5-mhp-bar').style.width = '0%';
+                            }
                         });
                     }
                 }
