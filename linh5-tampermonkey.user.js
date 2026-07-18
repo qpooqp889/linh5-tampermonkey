@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.24
+// @version      2.25
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1248,7 +1248,24 @@
     // ============================================================
     //  🛎️ 斷線重連自動處理（每60秒檢查）
     // ============================================================
+    let _afkCountdown = 0;
     function startAfkCheck() {
+        // 倒數 UI 每秒更新
+        setInterval(() => {
+            const h2 = document.querySelector('h2');
+            if (h2 && h2.textContent.trim() === '選 擇 角 色') {
+                let cd = h2.querySelector('.lh5-afk-cd');
+                if (!cd) { cd = document.createElement('span'); cd.className = 'lh5-afk-cd'; cd.style.cssText = 'color:#ff6b6b;font-size:16px;margin-left:10px;font-weight:bold'; h2.appendChild(cd); }
+                cd.textContent = `(${_afkCountdown}s 後自動點擊)`;
+                _afkCountdown = (_afkCountdown + 59) % 60; // 倒數
+            } else {
+                _afkCountdown = 0;
+                const old = document.querySelector('.lh5-afk-cd');
+                if (old) old.remove();
+            }
+        }, 1000);
+
+        // 實際動作每60秒一次
         setInterval(() => {
             // 1. AFK 畫面按「收下」
             const btn = document.getElementById('afk-ok');
