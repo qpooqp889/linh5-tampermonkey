@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.23
+// @version      2.24
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1246,14 +1246,21 @@
     });
 
     // ============================================================
-    //  🛎️ AFK 斷線自動按「收下」（每30分鐘檢查）
+    //  🛎️ 斷線重連自動處理（每60秒檢查）
     // ============================================================
     function startAfkCheck() {
-        // 每 2 秒檢查斷線阻擋畫面，出現立刻按「收下」
         setInterval(() => {
+            // 1. AFK 畫面按「收下」
             const btn = document.getElementById('afk-ok');
-            if (btn && btn.offsetParent !== null) { btn.click(); }
-        }, 2000);
+            if (btn && btn.offsetParent !== null) { btn.click(); return; }
+            // 2. 選擇角色畫面（斷線倒數重連中）
+            const h2 = document.querySelector('h2');
+            if (h2 && h2.textContent.trim() === '選 擇 角 色') {
+                // 選擇第一個角色欄位
+                const firstSlot = document.querySelector('.char-slot, [class*="char"]');
+                if (firstSlot) firstSlot.click();
+            }
+        }, 60000);
     }
 
     const bossCountdownEl = document.createElement('span');
