@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.39
+// @version      2.40
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -250,6 +250,11 @@
         #lh5-bag-search-bar select option { background:#1a1a2e;color:#e0d5c1; }
         #lh5-bag-search-bar .lh5-bag-count { font-size:12px;color:#888;white-space:nowrap;flex-shrink:0; }
         .lh5-cell-hidden { display:none!important; }
+        /* ── 怪物血條 ── */
+        .mslot { position:relative !important; }
+        .lh5-mhp-wrap { position:absolute;bottom:0;left:2px;right:2px;height:6px;background:rgba(0,0,0,0.6);border-radius:3px;overflow:hidden;z-index:5; }
+        .lh5-mhp-bar { height:100%;background:linear-gradient(90deg,#e74c3c,#ff6b6b);border-radius:3px;transition:width .25s ease; }
+        .lh5-mhp-text { position:absolute;bottom:7px;left:2px;right:2px;font-size:9px;color:#ff6b6b;text-align:center;text-shadow:0 0 3px #000;z-index:5;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
         /* ── 交易所金錢搜尋 ── */
         #lh5-trade-money-wrap { display:flex;align-items:center;gap:6px;margin-bottom:8px; }
         #lh5-trade-money { flex:1;padding:8px;border-radius:8px;border:1px solid #5a4a26;background:#efe9dc;color:#2a2018;font-size:14px;outline:none; }
@@ -1559,12 +1564,37 @@
                 if (ls.party && Array.isArray(ls.party)) summary.push('組隊:' + ls.party.length + '人');
                 console.log('[LH5] 📊 lastState:', summary.join(' | '), summary.length ? '' : '(無遊戲狀態)');
 
-                // 完整列印怪物血條（如果有）
+                // 怪物即時血條
                 if (ls.monsters && ls.monsters.length) {
-                    ls.monsters.forEach((m, i) => {
-                        if (!m) return;
-                        console.log('[LH5]   🐛 怪[' + i + ']:', m.name || '?', 'HP:', m.hp !== undefined ? m.hp + '/' + m.maxHp : '?', 'Lv:' + (m.lv || '?'));
-                    });
+                    const slots = document.getElementById('monster-slots');
+                    if (slots && !slots.classList.contains('hidden')) {
+                        ls.monsters.forEach((m, i) => {
+                            if (!m || m.hp === undefined) return;
+                            const slot = document.getElementById('mslot-' + i);
+                            if (!slot) return;
+                            // 建立血條
+                            let wrap = slot.querySelector('.lh5-mhp-wrap');
+                            if (!wrap) {
+                                wrap = document.createElement('div');
+                                wrap.className = 'lh5-mhp-wrap';
+                                const bar = document.createElement('div');
+                                bar.className = 'lh5-mhp-bar';
+                                wrap.appendChild(bar);
+                                const txt = document.createElement('div');
+                                txt.className = 'lh5-mhp-text';
+                                wrap.appendChild(txt);
+                                slot.appendChild(wrap);
+                            }
+                            const pct = m.maxHp > 0 ? Math.round((m.hp / m.maxHp) * 100) : 0;
+                            wrap.querySelector('.lh5-mhp-bar').style.width = pct + '%';
+                            const mn = m.n || m.name || '??';
+                            wrap.querySelector('.lh5-mhp-text').textContent = mn + ' ' + m.hp + '/' + m.maxHp;
+                            const barEl = wrap.querySelector('.lh5-mhp-bar');
+                            if (pct > 60) barEl.style.background = 'linear-gradient(90deg,#27ae60,#2ecc71)';
+                            else if (pct > 30) barEl.style.background = 'linear-gradient(90deg,#f39c12,#f1c40f)';
+                            else barEl.style.background = 'linear-gradient(90deg,#e74c3c,#ff6b6b)';
+                        });
+                    }
                 }
                 // 完整列印玩家血條
                 if (ls.players && ls.players.length) {
