@@ -9,6 +9,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
+// @grant        unsafeWindow
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -931,11 +932,20 @@
             s.id = '__lh5_bridge';
             s.textContent = 'setInterval(()=>{try{window.__lh5_inv=(typeof lastState!=="undefined"&&lastState)?lastState.inv:null}catch(e){window.__lh5_inv=null}},500)';
             document.documentElement.appendChild(s);
-        }();
+        // 注入持續橋接腳本到頁面上下文
+        //（Tampermonkey @grant 沙箱的 window ≠ 頁面 window，需 unsafeWindow 橋接）
+        if (!document.getElementById('__lh5_inv_bridge')) {
+            const s = document.createElement('script');
+            s.id = '__lh5_inv_bridge';
+            // 立即複製一次 + 每 500ms 持續更新
+            s.textContent = 'try{window.__lh5_inv=(typeof lastState!=="undefined"&&lastState)?lastState.inv:null}catch(e){}setInterval(()=>{try{window.__lh5_inv=(typeof lastState!=="undefined"&&lastState)?lastState.inv:null}catch(e){window.__lh5_inv=null}},500)';
+            document.documentElement.appendChild(s);
+        }
 
         function scanWeapons() {
         try {
-            const inv = window.__lh5_inv;
+            const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+            const inv = w.__lh5_inv;
             if (!inv || !Array.isArray(inv)) return [];
             return inv
                 .map((it, i) => ({ idx: i, item: it }))
