@@ -924,20 +924,10 @@
     // ============================================================
     //  🤖 掛機腳本功能
     // ============================================================
-        // 注入橋接腳本到頁面上下文：每 500ms 把 lastState.inv 複製到 window.__lh5_inv
-        //（Tampermonkey @grant 沙箱讀不到頁面的 let 變數，需橋接）
-        !function bridgeLastState() {
-            if (document.getElementById('__lh5_bridge')) return;
-            const s = document.createElement('script');
-            s.id = '__lh5_bridge';
-            s.textContent = 'setInterval(()=>{try{window.__lh5_inv=(typeof lastState!=="undefined"&&lastState)?lastState.inv:null}catch(e){window.__lh5_inv=null}},500)';
-            document.documentElement.appendChild(s);
-        // 注入持續橋接腳本到頁面上下文
-        //（Tampermonkey @grant 沙箱的 window ≠ 頁面 window，需 unsafeWindow 橋接）
+        // 注入持續橋接腳本到頁面上下文（unsafeWindow 讀取頁面 window.__lh5_inv）
         if (!document.getElementById('__lh5_inv_bridge')) {
             const s = document.createElement('script');
             s.id = '__lh5_inv_bridge';
-            // 立即複製一次 + 每 500ms 持續更新
             s.textContent = 'try{window.__lh5_inv=(typeof lastState!=="undefined"&&lastState)?lastState.inv:null}catch(e){}setInterval(()=>{try{window.__lh5_inv=(typeof lastState!=="undefined"&&lastState)?lastState.inv:null}catch(e){window.__lh5_inv=null}},500)';
             document.documentElement.appendChild(s);
         }
