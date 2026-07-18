@@ -252,7 +252,7 @@
         .lh5-cell-hidden { display:none!important; }
         /* ── 怪物血條 ── */
         .mslot { position:relative !important; }
-        .lh5-mhp-text { position:absolute;top:0;left:0;right:0;font-size:10px;color:#fff;text-align:center;text-shadow:0 0 4px #000, 0 0 4px #000;line-height:14px;z-index:6;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .lh5-mhp-text { position:absolute;top:0;left:2px;right:2px;font-size:10px;color:#fff;text-align:center;text-shadow:0 0 4px #000, 0 0 4px #000;line-height:1.3;z-index:6;pointer-events:none;overflow:hidden;text-overflow:ellipsis; }
         .lh5-mhp-wrap { position:absolute;bottom:0;left:0;right:0;height:5px;background:rgba(0,0,0,0.5);border-radius:0 0 3px 3px;z-index:5;pointer-events:none; }
         .lh5-mhp-bar { height:100%;background:linear-gradient(90deg,#e74c3c,#ff6b6b);border-radius:0 0 3px 3px;transition:width .25s ease; }
         /* ── 交易所金錢搜尋 ── */
@@ -395,8 +395,7 @@
                             <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#ccc">
                                 <span>回大廳方式：</span>
                                 <select id="lh5-farm-lobby-mode" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
-                                    <option value="selectChar"${lobbyMode==='selectChar'?' selected':''}>🎯 選角（socket.emit('selectChar', slot)）</option>
-                                    <option value="toLobby"${lobbyMode==='toLobby'?' selected':''}>🏠 回大廳（socket.emit('toLobby')）</option>
+                                    <option value="toLobby" selected>🏠 回大廳（socket.emit('toLobby')）</option>
 
                                 </select>
                             </div>
@@ -1598,7 +1597,7 @@
                     } else {
                         const pct = m.maxHp > 0 ? Math.round((m.hp / m.maxHp) * 100) : 0;
                         wrap.querySelector('.lh5-mhp-bar').style.width = pct + '%';
-                        wrap.querySelector('.lh5-mhp-text').textContent = mn + ' ' + m.hp + '/' + m.maxHp;
+                        wrap.querySelector('.lh5-mhp-text').innerHTML = mn + '<br>' + m.hp + '/' + m.maxHp;
                         const barEl = wrap.querySelector('.lh5-mhp-bar');
                         if (pct > 60) barEl.style.background = 'linear-gradient(90deg,#27ae60,#2ecc71)';
                         else if (pct > 30) barEl.style.background = 'linear-gradient(90deg,#f39c12,#f1c40f)';
