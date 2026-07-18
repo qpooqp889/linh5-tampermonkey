@@ -392,12 +392,12 @@
                                 <div style="margin-bottom:4px">🔫 回大廳裝備：</div>
                                 <select id="lh5-farm-lobby-weapon" style="width:100%;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
                                     <option value="">-- 不換武 --</option>
-                                    ${weapons.map(w => `<option value="${w.idx}"${lobbyWpn === String(w.idx) ? ' selected' : ''}>${w.name}</option>`).join('')}
+                                    ${weapons.map(w => `<option value="${w.value}"${lobbyWpn === w.value ? ' selected' : ''}>${w.label}</option>`).join('')}
                                 </select>
                                 <div style="margin-top:4px;margin-bottom:4px">🔫 出發前裝備：</div>
                                 <select id="lh5-farm-zone-weapon" style="width:100%;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
                                     <option value="">-- 不換武 --</option>
-                                    ${weapons.map(w => `<option value="${w.idx}"${zoneWpn === String(w.idx) ? ' selected' : ''}>${w.name}</option>`).join('')}
+                                    ${weapons.map(w => `<option value="${w.value}"${zoneWpn === w.value ? ' selected' : ''}>${w.label}</option>`).join('')}
                                 </select>
                             </div>
 	                            <div id="lh5-farm-status" style="font-size:11px;color:#666;margin-top:6px;">監控中 (MP < ${farmLowVal}% / HP < ${hpLowVal}% 回大廳, > ${farmHighVal}% / > ${hpHighVal}% 出發 ${farmZoneName})</div>
@@ -942,11 +942,26 @@
                 .filter(x => x.item && x.item.cat === 'wpn')
                 .map(x => ({
                     idx: x.idx,
-                    name: (x.item.n || '??') + (x.item.en != null && x.item.en > 0 ? ' [+' + x.item.en + ']' : '') + ' (index: ' + x.idx + ')',
-                    rawName: x.item.n || '??',
-                    en: x.item.en || 0,
+                    value: (x.item.n || '??') + '|' + (x.item.en || 0),
+                    label: (x.item.n || '??') + (x.item.en > 0 ? ' +' + x.item.en : ''),
                 }));
         } catch(e) { return []; }
+    }
+
+    // 根據名稱+強化等級，在 lastState.inv 中找到對應的當前 index
+    function findWeaponById(idStr) {
+        if (!idStr) return -1;
+        const [targetName, targetEn] = idStr.split('|');
+        try {
+            const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+            const inv = w.__lh5_inv;
+            if (!inv || !Array.isArray(inv)) return -1;
+            for (let i = 0; i < inv.length; i++) {
+                const it = inv[i];
+                if (it && it.cat === 'wpn' && it.n === targetName && String(it.en || 0) === targetEn) return i;
+            }
+        } catch(e) {}
+        return -1;
     }
 
     const autoFarmFeature = (function () {
@@ -1026,10 +1041,15 @@
         // 回大廳/選角（依設定選擇封包）
         // 注意：selectChar 可直接在遊戲中發送，伺服器處理重生回銀騎士+滿血滿魔
         function goLobby() {
-            const weaponIdx = localStorage.getItem(FARM_LOBBY_WEAPON_KEY);
-            if (weaponIdx) {
-                _emitSocket('equip', parseInt(weaponIdx, 10));
-                setTimeout(() => _emitSocket('toLobby'), 500);
+            const weaponId = localStorage.getItem(FARM_LOBBY_WEAPON_KEY);
+            if (weaponId) {
+                const idx = findWeaponById(weaponId);
+                if (idx >= 0) {
+                    _emitSocket('equip', idx);
+                    setTimeout(() => _emitSocket('toLobby'), 500);
+                } else {
+                    _emitSocket('toLobby');
+                }
             } else {
                 _emitSocket('toLobby');
             }
@@ -1040,13 +1060,14 @@
             const zoneName = getTargetZoneName();
             if (!zoneName) return;
 
-            const weaponIdx = localStorage.getItem(FARM_ZONE_WEAPON_KEY);
+            const weaponId = localStorage.getItem(FARM_ZONE_WEAPON_KEY);
             const go = () => {
                 _emitSocket('setZone', _targetZone);
                 setTimeout(() => _emitSocket('attack'), 3000);
             };
-            if (weaponIdx) {
-                _emitSocket('equip', parseInt(weaponIdx, 10));
+            if (weaponId) {
+                const idx = findWeaponById(weaponId);
+                if (idx >= 0) { _emitSocket('equip', idx); }
                 setTimeout(go, 500);
             } else {
                 go();
