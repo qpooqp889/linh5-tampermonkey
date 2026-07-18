@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.27
+// @version      2.28
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1248,30 +1248,55 @@
     // ============================================================
     //  🛎️ 斷線重連自動處理（每60秒檢查）
     // ============================================================
+    function _clickEl(el) {
+        if (!el) return;
+        if (typeof el.click === 'function') el.click();
+        try { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch(_){}
+        try { el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); } catch(_){}
+        try { el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); } catch(_){}
+    }
+
     let _afkCountdown = 0;
     function startAfkCheck() {
-        // 倒數 UI 每秒更新
+        // 倒數 UI 每秒更新（共用 _afkCountdown，兩個畫面不同時出現）
         setInterval(() => {
+            // 登入頁倒數
+            const loginBtn = document.getElementById('btn-login');
+            if (loginBtn && !loginBtn.classList.contains('hidden') && loginBtn.offsetParent !== null) {
+                let cd = loginBtn.parentNode.querySelector('.lh5-login-cd');
+                if (!cd) { cd = document.createElement('span'); cd.className = 'lh5-login-cd'; cd.style.cssText = 'color:#ff6b6b;font-size:13px;margin-left:8px;font-weight:bold'; loginBtn.parentNode.insertBefore(cd, loginBtn.nextSibling); }
+                cd.textContent = `（${_afkCountdown}s 後自動登入）`;
+            } else {
+                const old = document.querySelector('.lh5-login-cd');
+                if (old) old.remove();
+            }
+            // 選角頁倒數
             const h2 = document.querySelector('h2');
             const h2txt = h2 ? h2.textContent.trim() : '';
             if (h2 && h2txt.startsWith('選 擇 角 色')) {
                 let cd = h2.querySelector('.lh5-afk-cd');
                 if (!cd) { cd = document.createElement('span'); cd.className = 'lh5-afk-cd'; cd.style.cssText = 'color:#ff6b6b;font-size:16px;margin-left:10px;font-weight:bold'; h2.appendChild(cd); }
                 cd.textContent = `(${_afkCountdown}s 後自動點擊)`;
-                _afkCountdown = (_afkCountdown + 59) % 60; // 倒數
-            } else {
+                _afkCountdown = (_afkCountdown + 59) % 60;
+            } else if (!loginBtn || loginBtn.classList.contains('hidden') || loginBtn.offsetParent === null) {
                 _afkCountdown = 0;
                 const old = document.querySelector('.lh5-afk-cd');
                 if (old) old.remove();
             }
         }, 1000);
 
+
         // 實際動作每60秒一次
         setInterval(() => {
             // 1. AFK 畫面按「收下」
             const btn = document.getElementById('afk-ok');
             if (btn && btn.offsetParent !== null) { btn.click(); return; }
-            // 2. 選擇角色畫面（斷線倒數重連中）
+            // 2. 登入按鈕
+            const loginBtn = document.getElementById('btn-login');
+            if (loginBtn && !loginBtn.classList.contains('hidden') && loginBtn.offsetParent !== null) {
+                _clickEl(loginBtn);
+            }
+            // 3. 選擇角色畫面
             const h2 = document.querySelector('h2');
             const h2txt2 = h2 ? h2.textContent.trim() : '';
             if (h2 && h2txt2.startsWith('選 擇 角 色')) {
@@ -1282,10 +1307,7 @@
                     if (charSlots.length > slotIdx) {
                         const target = charSlots[slotIdx];
                         if (target && !target.querySelector('.empty')) {
-                            // 雙重觸發：click + mousedown（遊戲可能只聽 mousedown）
-                            if (typeof target.click === 'function') target.click();
-                            try { target.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch(_){}
-                            try { target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); } catch(_){}
+                            _clickEl(target);
                         }
                     }
                 }
