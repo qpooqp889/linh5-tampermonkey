@@ -908,9 +908,19 @@
     // ============================================================
     //  🤖 掛機腳本功能
     // ============================================================
+        // 注入橋接腳本到頁面上下文：每 500ms 把 lastState.inv 複製到 window.__lh5_inv
+        //（Tampermonkey @grant 沙箱讀不到頁面的 let 變數，需橋接）
+        !function bridgeLastState() {
+            if (document.getElementById('__lh5_bridge')) return;
+            const s = document.createElement('script');
+            s.id = '__lh5_bridge';
+            s.textContent = 'setInterval(()=>{try{window.__lh5_inv=(typeof lastState!=="undefined"&&lastState)?lastState.inv:null}catch(e){window.__lh5_inv=null}},500)';
+            document.documentElement.appendChild(s);
+        }();
+
         function scanWeapons() {
         try {
-            const inv = window.lastState && window.lastState.inv;
+            const inv = window.__lh5_inv;
             if (!inv || !Array.isArray(inv)) return [];
             return inv
                 .map((it, i) => ({ idx: i, item: it }))
