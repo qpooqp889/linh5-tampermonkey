@@ -483,6 +483,15 @@
 
                 localStorage.setItem(FARM_LOBBY_WEAPON_KEY, document.getElementById('lh5-farm-lobby-weapon')?.value || '');
                 localStorage.setItem(FARM_ZONE_WEAPON_KEY, document.getElementById('lh5-farm-zone-weapon')?.value || '');
+
+                // 下拉選單變更時立即存入 localStorage
+                document.getElementById('lh5-farm-lobby-weapon')?.addEventListener('change', function(){
+                    localStorage.setItem(FARM_LOBBY_WEAPON_KEY, this.value);
+                });
+                document.getElementById('lh5-farm-zone-weapon')?.addEventListener('change', function(){
+                    localStorage.setItem(FARM_ZONE_WEAPON_KEY, this.value);
+                });
+
                 // 更新狀態列
                 const st = document.getElementById('lh5-farm-status');
                 if (st) {
