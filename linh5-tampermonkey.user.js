@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.34
+// @version      2.36
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1401,31 +1401,50 @@
     // ============================================================
     //  🎯 selectChar 測試按鈕（浮動下拉 0/1/2）
     // ============================================================
-    const selectCharTest = document.createElement('span');
-    selectCharTest.id = 'lh5-selectchar-test';
-    selectCharTest.innerHTML = '<select id="lh5-sct-slot"><option value="0">0</option><option value="1">1</option><option value="2">2</option></select><span class="sct-btn" id="lh5-sct-send">🎯</span>';
-    selectCharTest.title = '測試 selectChar (slot 0/1/2)';
-
-    selectCharTest.querySelector('#lh5-sct-send').addEventListener('click', () => {
-        const slot = parseInt(document.getElementById('lh5-sct-slot')?.value || '0', 10);
-        try {
-            if (typeof socket !== 'undefined' && socket && typeof socket.emit === 'function') {
-                socket.emit('selectChar', slot);
-                console.log('[LH5] selectChar sent, slot:', slot);
-            } else {
-                console.warn('[LH5] socket not available');
+    function createSelectCharTestEl() {
+        const el = document.createElement('span');
+        el.id = 'lh5-selectchar-test';
+        el.innerHTML = '<select class="lh5-sct-slot"><option value="0">0</option><option value="1">1</option><option value="2">2</option></select><span class="sct-btn lh5-sct-send">🎯</span>';
+        el.title = '測試 selectChar (slot 0/1/2)';
+        el.querySelector('.lh5-sct-send').addEventListener('click', function() {
+            const slot = parseInt(el.querySelector('.lh5-sct-slot')?.value || '0', 10);
+            try {
+                if (typeof socket !== 'undefined' && socket && typeof socket.emit === 'function') {
+                    socket.emit('selectChar', slot);
+                    console.log('[LH5] selectChar sent, slot:', slot);
+                } else {
+                    console.warn('[LH5] socket not available');
+                }
+            } catch(e) {
+                console.error('[LH5] selectChar error:', e);
             }
-        } catch(e) {
-            console.error('[LH5] selectChar error:', e);
-        }
-    });
+        });
+        return el;
+    }
+
+    const selectCharTest = createSelectCharTestEl();
 
     function mountSelectCharTest() {
-        const tb = document.getElementById('topbar'); if (!tb) { setTimeout(mountSelectCharTest, 300); return; }
-        const nameEl = document.getElementById('t-name');
-        if (!nameEl) { setTimeout(mountSelectCharTest, 300); return; }
-        if (nameEl.parentNode.querySelector('#lh5-selectchar-test')) return;
-        nameEl.after(selectCharTest);
+        const cs = document.getElementById('charselect');
+        if (!cs || cs.querySelector('#lh5-selectchar-test')) { setTimeout(mountSelectCharTest, 500); return; }
+        const el = createSelectCharTestEl();
+        el.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin:0 auto 10px;padding:4px 12px;background:rgba(60,60,180,0.15);border-radius:6px;width:fit-content';
+        const h2 = cs.querySelector('h2');
+        if (h2) { h2.after(el); }
+        // 持續監聽 #charselect 的 class 變化（screen/hidden 切換時可能被砍掉重建）
+        if (!window._lh5_sct_obs) {
+            const obs = new MutationObserver(() => {
+                const cs2 = document.getElementById('charselect');
+                if (cs2 && !cs2.querySelector('#lh5-selectchar-test')) {
+                    const e2 = createSelectCharTestEl();
+                    e2.style.cssText = el.style.cssText;
+                    const h = cs2.querySelector('h2');
+                    if (h) h.after(e2);
+                }
+            });
+            obs.observe(document.getElementById('app') || document.body, { childList: true, subtree: true });
+            window._lh5_sct_obs = obs;
+        }
     }
 
     // ============================================================
