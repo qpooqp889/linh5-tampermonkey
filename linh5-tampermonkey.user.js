@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.28
+// @version      2.29
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -202,7 +202,7 @@
         }
         .lh5-friend-item:last-child { border-bottom:none; }
         .lh5-friend-name { color:#e0d5c1; }
-        .cu.cu-link { color:#ffd700;cursor:pointer; }
+        .cu.cu-link { color:#ffd700;cursor:pointer;text-decoration:underline dotted; }
         .cu.cu-link:hover { text-decoration:underline; }
         .lh5-friend-del {
             padding:3px 10px;border:none;border-radius:4px;
@@ -1156,12 +1156,23 @@
             if (searchVal && !f.name.toLowerCase().includes(searchVal)) return;
             visible++;
             html += `<div class="lh5-friend-item">
-                <span class="cu cu-link">${f.name.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>
+                <span class="cu cu-link" data-name="${f.name.replace(/</g,'&lt;').replace(/>/g,'&gt;')}">${f.name.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>
                 <button class="lh5-friend-del" data-idx="${i}">刪除</button>
             </div>`;
         });
         const listEl = document.getElementById('lh5-friend-list');
         listEl.innerHTML = html || '<div style="text-align:center;color:#666;padding:20px;font-size:13px">暫無好友</div>';
+
+        // 點好友名稱 → 查看玩家資料（與遊戲聊天室/排行榜行為一致）
+        listEl.querySelectorAll('.cu-link[data-name]').forEach(el => {
+            el.onclick = () => {
+                const name = el.dataset.name;
+                // 遊戲透過 socket.emit('viewPlayer', name) 彈出玩家資訊
+                if (typeof socket !== 'undefined' && socket && typeof socket.emit === 'function') {
+                    socket.emit('viewPlayer', name);
+                }
+            };
+        });
         document.getElementById('lh5-friend-count').textContent = visible > 0 ? `顯示 ${visible} / ${list.length} 人` : `共 ${list.length} 人`;
 
         // 刪除事件
