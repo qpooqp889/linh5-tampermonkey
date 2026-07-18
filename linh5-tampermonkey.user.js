@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.40
+// @version      2.41
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1550,7 +1550,7 @@
                 return origEmit(ev, data, cb);
             };
 
-            // lastState 輪詢（每秒印一次狀態摘要）
+            // lastState 輪詢（每 500ms 更新怪物血條）
             setInterval(() => {
                 if (typeof lastState === 'undefined' || !lastState) return;
                 const ls = lastState;
@@ -1585,9 +1585,11 @@
                                 wrap.appendChild(txt);
                                 slot.appendChild(wrap);
                             }
+                            // 存名稱：完整資料有 n，hp-only 更新沒有，用已存的
+                            if (m.n != null) wrap.dataset.mname = m.n;
+                            const mn = wrap.dataset.mname || '??';
                             const pct = m.maxHp > 0 ? Math.round((m.hp / m.maxHp) * 100) : 0;
                             wrap.querySelector('.lh5-mhp-bar').style.width = pct + '%';
-                            const mn = m.n || m.name || '??';
                             wrap.querySelector('.lh5-mhp-text').textContent = mn + ' ' + m.hp + '/' + m.maxHp;
                             const barEl = wrap.querySelector('.lh5-mhp-bar');
                             if (pct > 60) barEl.style.background = 'linear-gradient(90deg,#27ae60,#2ecc71)';
@@ -1596,14 +1598,7 @@
                         });
                     }
                 }
-                // 完整列印玩家血條
-                if (ls.players && ls.players.length) {
-                    ls.players.forEach((p, i) => {
-                        if (!p) return;
-                        console.log('[LH5]   👤 玩家[' + i + ']:', p.name || '?', 'HP:', p.hp !== undefined ? p.hp + '/' + p.maxHp : '?');
-                    });
-                }
-            }, 2000);
+            }, 500);
 
             console.log('[LH5] ✅ 全部攔截已啟動');
         }, 500);
