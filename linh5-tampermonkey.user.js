@@ -178,26 +178,7 @@
             margin-left:4px;flex-shrink:0;vertical-align:middle;
         }
         #lh5-friend-btn:hover { background:rgba(255,80,80,0.3); transform:scale(1.15); }
-        #lh5-selectchar-test {
-            display:inline-flex;align-items:center;gap:0;
-            height:28px;cursor:pointer;user-select:none;
-            margin-left:4px;flex-shrink:0;vertical-align:middle;
-            border-radius:6px;overflow:hidden;
-            background:rgba(60,60,180,0.2);
-            transition:background .2s;
-        }
-        #lh5-selectchar-test:hover { background:rgba(60,60,180,0.4); }
-        #lh5-selectchar-test select {
-            background:transparent;border:none;color:#8a8aff;
-            font-size:13px;padding:2px 0 2px 6px;outline:none;cursor:pointer;
-            appearance:auto;width:28px;
-        }
-        #lh5-selectchar-test select option { background:#1a1a2e;color:#8a8aff; }
-        #lh5-selectchar-test .sct-btn {
-            padding:2px 6px;font-size:13px;color:#8a8aff;
-            cursor:pointer;transition:color .2s;
-        }
-        #lh5-selectchar-test .sct-btn:hover { color:#c8a96e; }
+
         #lh5-boss-countdown { display:none;font-size:14px;font-weight:bold;color:#ff3333;margin-left:6px;flex-shrink:0;font-variant-numeric:tabular-nums; }
         #lh5-friend-overlay {
             position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,0.6);
@@ -252,7 +233,7 @@
         .lh5-cell-hidden { display:none!important; }
         /* ── 怪物血條 ── */
         .mslot { position:relative !important; }
-        .lh5-mhp-text { position:absolute;top:0;left:2px;right:2px;font-size:10px;color:#fff;text-align:center;text-shadow:0 0 4px #000, 0 0 4px #000;line-height:1.3;z-index:6;pointer-events:none;overflow:hidden;text-overflow:ellipsis; }
+        .lh5-mhp-text { position:absolute;top:-16px;left:0;right:0;font-size:9px;color:#fff;text-align:center;text-shadow:0 0 4px #000, 0 0 4px #000, 0 0 4px #000;line-height:1.2;z-index:10;pointer-events:none; }
         .lh5-mhp-wrap { position:absolute;bottom:0;left:0;right:0;height:5px;background:rgba(0,0,0,0.5);border-radius:0 0 3px 3px;z-index:5;pointer-events:none; }
         .lh5-mhp-bar { height:100%;background:linear-gradient(90deg,#e74c3c,#ff6b6b);border-radius:0 0 3px 3px;transition:width .25s ease; }
         /* ── 交易所金錢搜尋 ── */
@@ -356,7 +337,7 @@
             const hpEnabled = localStorage.getItem(FARM_HP_ENABLED_KEY) === '1';
             const hpLowVal = localStorage.getItem(FARM_HP_LOW_KEY) || '30';
             const hpHighVal = localStorage.getItem(FARM_HP_HIGH_KEY) || '80';
-            const lobbyMode = localStorage.getItem(FARM_LOBBY_MODE_KEY) || 'selectChar';
+            const lobbyMode = 'toLobby'; // 固定回大廳
             const rows = document.querySelectorAll('#lh5-modal-body .lh5-switch-row');
             for (const row of rows) {
                 const cb = row.querySelector('input[data-key="autoFarm"]');
@@ -473,9 +454,7 @@
                 const hpHighEl = document.getElementById('lh5-farm-hp-high');
                 if (hpLowEl) { const v = parseInt(hpLowEl.value,10); if (!isNaN(v)&&v>=1&&v<=99) localStorage.setItem(FARM_HP_LOW_KEY, String(v)); }
                 if (hpHighEl) { const v = parseInt(hpHighEl.value,10); if (!isNaN(v)&&v>=1&&v<=99) localStorage.setItem(FARM_HP_HIGH_KEY, String(v)); }
-                // 回大廳方式
-                const lobbyModeEl = document.getElementById('lh5-farm-lobby-mode');
-                if (lobbyModeEl) localStorage.setItem(FARM_LOBBY_MODE_KEY, lobbyModeEl.value);
+
                 // 更新狀態列
                 const st = document.getElementById('lh5-farm-status');
                 if (st) {
@@ -492,9 +471,7 @@
             const hpHighEl = document.getElementById('lh5-farm-hp-high');
             if (hpLowEl) hpLowEl.addEventListener('input', saveFarm);
             if (hpHighEl) hpHighEl.addEventListener('input', saveFarm);
-            // 回大廳方式
-            const lobbyModeEl = document.getElementById('lh5-farm-lobby-mode');
-            if (lobbyModeEl) lobbyModeEl.addEventListener('change', saveFarm);
+
             // 打勾開關
             document.querySelectorAll('[data-farm-cb]').forEach(cb => {
                 cb.addEventListener('change', () => {
