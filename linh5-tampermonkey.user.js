@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.30
+// @version      2.31
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -27,6 +27,11 @@
     const FARM_ZONE_KEY = 'lh5_farm_zone';
     const FARM_SLOT_KEY = 'lh5_farm_slot';
     const FARM_RECONNECT_KEY = 'lh5_farm_reconnect';
+    const FARM_MP_ENABLED_KEY = 'lh5_farm_mp_enabled';
+    const FARM_HP_ENABLED_KEY = 'lh5_farm_hp_enabled';
+    const FARM_HP_LOW_KEY = 'lh5_farm_hp_low';
+    const FARM_HP_HIGH_KEY = 'lh5_farm_hp_high';
+    const FARM_LOBBY_MODE_KEY = 'lh5_farm_lobby_mode';
 
     const FARM_ZONES = [
         // ── 野外 ──
@@ -322,32 +327,55 @@
             const farmHighVal = localStorage.getItem(FARM_HIGH_KEY) || '80';
             const farmZoneVal = localStorage.getItem(FARM_ZONE_KEY) || 'zone_07';
             const farmZoneName = FARM_ZONES.find(z => z.id === farmZoneVal)?.name || '古魯丁地監2樓';
+            const mpEnabled = localStorage.getItem(FARM_MP_ENABLED_KEY) !== '0'; // 預設 1
+            const hpEnabled = localStorage.getItem(FARM_HP_ENABLED_KEY) === '1';
+            const hpLowVal = localStorage.getItem(FARM_HP_LOW_KEY) || '30';
+            const hpHighVal = localStorage.getItem(FARM_HP_HIGH_KEY) || '80';
+            const lobbyMode = localStorage.getItem(FARM_LOBBY_MODE_KEY) || 'socket';
             const rows = document.querySelectorAll('#lh5-modal-body .lh5-switch-row');
             for (const row of rows) {
                 const cb = row.querySelector('input[data-key="autoFarm"]');
                 if (cb) {
                     const wrapper = document.createElement('div');
                     wrapper.style.cssText = 'margin-top:8px;width:100%';
+                    const mkChk = (key, label, checked) =>
+                        `<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:#aaa;user-select:none;margin-right:8px"><input type="checkbox" data-farm-cb="${key}" ${checked?'checked':''} style="accent-color:#c8a96e"> ${label}</label>`;
                     wrapper.innerHTML = `
                         <div style="padding:10px;background:#12121e;border-radius:8px">
                             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#ccc">
+                                ${mkChk('mp','✔ MP',mpEnabled)}
                                 <span>MP <：</span>
                                 <input id="lh5-farm-low" type="number" min="1" max="99" value="${farmLowVal}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
                                 <span>% 回大廳</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#ccc">
                                 <span>MP >：</span>
                                 <input id="lh5-farm-high" type="number" min="1" max="99" value="${farmHighVal}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
-                                <span>% 出發掛機</span>
+                                <span>% 出發</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#ccc">
+                                ${mkChk('hp','✔ HP',hpEnabled)}
+                                <span>HP <：</span>
+                                <input id="lh5-farm-hp-low" type="number" min="1" max="99" value="${hpLowVal}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                                <span>% 回大廳</span>
+                                <span>HP >：</span>
+                                <input id="lh5-farm-hp-high" type="number" min="1" max="99" value="${hpHighVal}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                                <span>% 出發</span>
                             </div>
                             <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#ccc">
                                 <span>地圖：</span>
-                                <input id="lh5-farm-filter" type="text" placeholder="🔍 檢索地圖…" style="width:70px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                                <input id="lh5-farm-filter" type="text" placeholder="🔍 檢索地圖…" style="width:60px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
                                 <select id="lh5-farm-zone" size="6" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
                                     ${FARM_ZONES.map(z => `<option value="${z.id}"${z.id===farmZoneVal?' selected':''}>${z.name}</option>`).join('')}
                                 </select>
                             </div>
-                            <div id="lh5-farm-status" style="font-size:11px;color:#666;margin-top:6px;">監控中 (MP < ${farmLowVal}%回大廳, > ${farmHighVal}%前往 ${farmZoneName})</div>
+                            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#ccc">
+                                <span>回大廳方式：</span>
+                                <select id="lh5-farm-lobby-mode" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
+                                    <option value="socket"${lobbyMode==='socket'?' selected':''}>📡 socket.emit('toLobby')</option>
+                                    <option value="dom"${lobbyMode==='dom'?' selected':''}>🖱 DOM #btn-lobby 點擊</option>
+
+                                </select>
+                            </div>
+                            <div id="lh5-farm-status" style="font-size:11px;color:#666;margin-top:6px;">監控中 (MP < ${farmLowVal}% / HP < ${hpLowVal}% 回大廳, > ${farmHighVal}% / > ${hpHighVal}% 出發 ${farmZoneName})</div>
                         </div>
                     `;
                     // 運行/停止按鈕
@@ -416,29 +444,41 @@
                 if (!isNaN(l) && l >= 1 && l <= 99) localStorage.setItem(FARM_LOW_KEY, String(l));
                 if (!isNaN(h) && h >= 1 && h <= 99) localStorage.setItem(FARM_HIGH_KEY, String(h));
                 localStorage.setItem(FARM_ZONE_KEY, farmZone.value);
+                // HP
+                const hpLowEl = document.getElementById('lh5-farm-hp-low');
+                const hpHighEl = document.getElementById('lh5-farm-hp-high');
+                if (hpLowEl) { const v = parseInt(hpLowEl.value,10); if (!isNaN(v)&&v>=1&&v<=99) localStorage.setItem(FARM_HP_LOW_KEY, String(v)); }
+                if (hpHighEl) { const v = parseInt(hpHighEl.value,10); if (!isNaN(v)&&v>=1&&v<=99) localStorage.setItem(FARM_HP_HIGH_KEY, String(v)); }
+                // 回大廳方式
+                const lobbyModeEl = document.getElementById('lh5-farm-lobby-mode');
+                if (lobbyModeEl) localStorage.setItem(FARM_LOBBY_MODE_KEY, lobbyModeEl.value);
                 // 更新狀態列
                 const st = document.getElementById('lh5-farm-status');
                 if (st) {
                     const zn = FARM_ZONES.find(z => z.id === farmZone.value)?.name || '';
-                    st.textContent = `監控中 (MP < ${farmLow.value}%回大廳, > ${farmHigh.value}%前往 ${zn})`;
+                    st.textContent = `監控中 (MP < ${farmLow.value}% / HP < ${hpLowEl?.value||'30'}% 回大廳, > ${farmHigh.value}% / > ${hpHighEl?.value||'80'}% 出發 ${zn})`;
                 }
             };
             farmLow.addEventListener('input', saveFarm);
             farmHigh.addEventListener('input', saveFarm);
             farmZone.addEventListener('change', saveFarm);
             farmZone.addEventListener('click', saveFarm);
+            // HP inputs
+            const hpLowEl = document.getElementById('lh5-farm-hp-low');
+            const hpHighEl = document.getElementById('lh5-farm-hp-high');
+            if (hpLowEl) hpLowEl.addEventListener('input', saveFarm);
+            if (hpHighEl) hpHighEl.addEventListener('input', saveFarm);
+            // 回大廳方式
+            const lobbyModeEl = document.getElementById('lh5-farm-lobby-mode');
+            if (lobbyModeEl) lobbyModeEl.addEventListener('change', saveFarm);
+            // 打勾開關
+            document.querySelectorAll('[data-farm-cb]').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    localStorage.setItem(cb.dataset.farmCb === 'mp' ? FARM_MP_ENABLED_KEY : FARM_HP_ENABLED_KEY, cb.checked ? '1' : '0');
+                    saveFarm();
+                });
+            });
         }
-        // 斷線重連設定存檔
-        const farmSlot = document.getElementById('lh5-farm-slot');
-        const farmReconnect = document.getElementById('lh5-farm-reconnect');
-        if (farmSlot) farmSlot.addEventListener('change', () => localStorage.setItem(FARM_SLOT_KEY, farmSlot.value));
-        if (farmReconnect) farmReconnect.addEventListener('change', () => {
-            let v = parseInt(farmReconnect.value, 10);
-            if (isNaN(v) || v < 10) v = 10;
-            if (v > 3600) v = 3600;
-            farmReconnect.value = v;
-            localStorage.setItem(FARM_RECONNECT_KEY, String(v));
-        });
         // 運行/停止按鈕
         const toggleBtn = document.getElementById('lh5-farm-toggle');
         if (toggleBtn) {
@@ -859,11 +899,22 @@
         let _reconnectSec = 300; // 斷線重連檢查間隔（秒）
         let _reconnectTimer = null; // 斷線重連 timer
 
+        let _mpEnabled = true;
+        let _hpEnabled = false;
+        let _hpLow = 30;
+        let _hpHigh = 80;
+        let _lobbyMode = 'socket';
+
         function loadConfig() {
             try {
+                _mpEnabled = localStorage.getItem(FARM_MP_ENABLED_KEY) !== '0';
+                _hpEnabled = localStorage.getItem(FARM_HP_ENABLED_KEY) === '1';
                 _mpLow = parseInt(localStorage.getItem(FARM_LOW_KEY), 10) || 10;
                 _mpHigh = parseInt(localStorage.getItem(FARM_HIGH_KEY), 10) || 80;
+                _hpLow = parseInt(localStorage.getItem(FARM_HP_LOW_KEY), 10) || 30;
+                _hpHigh = parseInt(localStorage.getItem(FARM_HP_HIGH_KEY), 10) || 80;
                 _targetZone = localStorage.getItem(FARM_ZONE_KEY) || 'zone_07';
+                _lobbyMode = localStorage.getItem(FARM_LOBBY_MODE_KEY) || 'socket';
                 _reconnectSlot = parseInt(localStorage.getItem(FARM_SLOT_KEY), 10) || 0;
                 _reconnectSec = parseInt(localStorage.getItem(FARM_RECONNECT_KEY), 10) || 300;
                 if (_reconnectSlot < 0 || _reconnectSlot > 2) _reconnectSlot = 0;
@@ -872,10 +923,20 @@
             } catch (_) {}
             _mpLow = Math.max(1, Math.min(99, _mpLow));
             _mpHigh = Math.max(1, Math.min(99, _mpHigh));
+            _hpLow = Math.max(1, Math.min(99, _hpLow));
+            _hpHigh = Math.max(1, Math.min(99, _hpHigh));
         }
 
         function getMPPercent() {
             const bar = document.getElementById('p-mp');
+            if (!bar) return 100;
+            const w = bar.style.width;
+            if (!w) return 100;
+            return parseFloat(w) || 100;
+        }
+
+        function getHPPercent() {
+            const bar = document.getElementById('p-hp');
             if (!bar) return 100;
             const w = bar.style.width;
             if (!w) return 100;
@@ -901,9 +962,17 @@
             } catch(_) {}
         }
 
-        // 回大廳（直接封包，不再靠 DOM 點擊）
+        // 回大廳（依設定選擇封包或 DOM 點擊）
         function goLobby() {
-            _emitSocket('toLobby');
+            if (_lobbyMode === 'dom') {
+                const btn = document.getElementById('btn-lobby');
+                if (btn) {
+                    if (typeof btn.click === 'function') btn.click();
+                    try { btn.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch(_){}
+                }
+            } else {
+                _emitSocket('toLobby');
+            }
         }
 
         // 傳送到目標地圖並自動攻擊（直接封包，不再靠 DOM 點擊流程）
@@ -923,18 +992,30 @@
             loadConfig();
 
             const mp = getMPPercent();
+            const hp = getHPPercent();
             const zoneName = getCurrentZoneName();
             const targetName = getTargetZoneName();
 
-            if (mp < _mpLow) {
-                // MP太低→回大廳休息
+            // 判斷是否該回大廳（MP 或 HP 任一啟用且低於門檻）
+            let shouldRest = false;
+            if (_mpEnabled && mp < _mpLow) shouldRest = true;
+            if (_hpEnabled && hp < _hpLow) shouldRest = true;
+
+            if (shouldRest) {
                 if (!_isResting) {
                     _isResting = true;
                     goLobby();
                 }
-            } else if (mp > _mpHigh) {
-                // MP足夠→如果正在休息狀態→出發掛機
-                if (_isResting || targetName && zoneName !== targetName) {
+                return;
+            }
+
+            // 判斷是否該出發：所有啟用的條件都高於門檻
+            let canGo = true;
+            if (_mpEnabled && mp <= _mpHigh) canGo = false;
+            if (_hpEnabled && hp <= _hpHigh) canGo = false;
+
+            if (canGo) {
+                if (_isResting || (targetName && zoneName !== targetName)) {
                     _isResting = false;
                     goToZone();
                 }
