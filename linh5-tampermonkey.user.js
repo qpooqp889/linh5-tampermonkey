@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.32
+// @version      2.33
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -965,8 +965,11 @@
         // 回大廳/選角（依設定選擇封包）
         function goLobby() {
             if (_lobbyMode === 'selectChar') {
-                // 只發 selectChar → 直接選角進場，滿血滿魔
-                _emitSocket('selectChar', _reconnectSlot);
+                // 兩段式：先回大廳 → 延遲 → 選角進場（HP/MP全滿）
+                _emitSocket('toLobby');
+                setTimeout(() => {
+                    _emitSocket('selectChar', _reconnectSlot);
+                }, 3000);
             } else {
                 // 只發 toLobby → 回大廳
                 _emitSocket('toLobby');
