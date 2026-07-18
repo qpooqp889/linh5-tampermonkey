@@ -178,6 +178,26 @@
             margin-left:4px;flex-shrink:0;vertical-align:middle;
         }
         #lh5-friend-btn:hover { background:rgba(255,80,80,0.3); transform:scale(1.15); }
+        #lh5-selectchar-test {
+            display:inline-flex;align-items:center;gap:0;
+            height:28px;cursor:pointer;user-select:none;
+            margin-left:4px;flex-shrink:0;vertical-align:middle;
+            border-radius:6px;overflow:hidden;
+            background:rgba(60,60,180,0.2);
+            transition:background .2s;
+        }
+        #lh5-selectchar-test:hover { background:rgba(60,60,180,0.4); }
+        #lh5-selectchar-test select {
+            background:transparent;border:none;color:#8a8aff;
+            font-size:13px;padding:2px 0 2px 6px;outline:none;cursor:pointer;
+            appearance:auto;width:28px;
+        }
+        #lh5-selectchar-test select option { background:#1a1a2e;color:#8a8aff; }
+        #lh5-selectchar-test .sct-btn {
+            padding:2px 6px;font-size:13px;color:#8a8aff;
+            cursor:pointer;transition:color .2s;
+        }
+        #lh5-selectchar-test .sct-btn:hover { color:#c8a96e; }
         #lh5-boss-countdown { display:none;font-size:14px;font-weight:bold;color:#ff3333;margin-left:6px;flex-shrink:0;font-variant-numeric:tabular-nums; }
         #lh5-friend-overlay {
             position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,0.6);
@@ -1379,6 +1399,36 @@
     }
 
     // ============================================================
+    //  🎯 selectChar 測試按鈕（浮動下拉 0/1/2）
+    // ============================================================
+    const selectCharTest = document.createElement('span');
+    selectCharTest.id = 'lh5-selectchar-test';
+    selectCharTest.innerHTML = '<select id="lh5-sct-slot"><option value="0">0</option><option value="1">1</option><option value="2">2</option></select><span class="sct-btn" id="lh5-sct-send">🎯</span>';
+    selectCharTest.title = '測試 selectChar (slot 0/1/2)';
+
+    selectCharTest.querySelector('#lh5-sct-send').addEventListener('click', () => {
+        const slot = parseInt(document.getElementById('lh5-sct-slot')?.value || '0', 10);
+        try {
+            if (typeof socket !== 'undefined' && socket && typeof socket.emit === 'function') {
+                socket.emit('selectChar', slot);
+                console.log('[LH5] selectChar sent, slot:', slot);
+            } else {
+                console.warn('[LH5] socket not available');
+            }
+        } catch(e) {
+            console.error('[LH5] selectChar error:', e);
+        }
+    });
+
+    function mountSelectCharTest() {
+        const tb = document.getElementById('topbar'); if (!tb) { setTimeout(mountSelectCharTest, 300); return; }
+        const nameEl = document.getElementById('t-name');
+        if (!nameEl) { setTimeout(mountSelectCharTest, 300); return; }
+        if (nameEl.parentNode.querySelector('#lh5-selectchar-test')) return;
+        nameEl.after(selectCharTest);
+    }
+
+    // ============================================================
     //  ⚙ 齒輪掛載（topbar gold-box 右邊）
     // ============================================================
     function mountGear() {
@@ -1393,6 +1443,7 @@
     // ============================================================
     mountGear();
     mountFriendBtn();
+    mountSelectCharTest();
     startBossCountdown();
     startAfkCheck();
     initFeatures();
@@ -1414,6 +1465,7 @@
             // 確認齒輪
             if (!document.getElementById('lh5-settings-btn')) mountGear();
             if (!document.getElementById('lh5-friend-btn')) { mountFriendBtn(); if (!document.getElementById('lh5-boss-countdown') && friendBtn.nextSibling) { friendBtn.after(bossCountdownEl); } }
+            if (!document.getElementById('lh5-selectchar-test')) mountSelectCharTest();
 
             // 重啟功能
             const s = loadSettings();
