@@ -376,9 +376,11 @@
                                 <input id="lh5-farm-hp-high" type="number" min="1" max="99" value="${hpHighVal}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
                                 <span>% 出發</span>
                             </div>
-                            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#ccc">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#ccc">
                                 <span>地圖：</span>
-                                <input id="lh5-farm-filter" type="text" placeholder="🔍 檢索地圖…" style="width:60px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                                <input id="lh5-farm-filter" type="text" placeholder="🔍 檢索地圖…" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#ccc">
                                 <select id="lh5-farm-zone" size="6" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
                                     ${FARM_ZONES.map(z => `<option value="${z.id}"${z.id===farmZoneVal?' selected':''}>${z.name}</option>`).join('')}
                                 </select>
