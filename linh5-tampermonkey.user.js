@@ -329,7 +329,8 @@
             farmRow.addEventListener('click', () => {
                 const s2 = loadSettings();
                 // 收合只影響 UI，不影響掛機執行
-                localStorage.setItem(FARM_UI_KEY, s2.autoFarm ? '0' : '1');
+                const nowOpen = localStorage.getItem(FARM_UI_KEY) !== '0';
+                localStorage.setItem(FARM_UI_KEY, nowOpen ? '0' : '1');
                 renderSettings();
             });
         }
