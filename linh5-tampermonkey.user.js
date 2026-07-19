@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.56
+// @version      2.58
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -261,7 +261,7 @@
         .lh5-star:hover { transform:scale(1.25); }
         .lh5-star.pinned { color:#fbbf24; }
         .lh5-star:not(.pinned) { color:#444; }
-        #t-exp-txt { color:#fff !important; white-space:pre-wrap; line-height:1.2; }
+        #t-exp-txt { display:none !important; }
         .wb-r1 { display:flex;align-items:center; }
         .lh5-boss-countdown { color:#fbbf24; font-weight:bold; margin-right:6px; }
         
@@ -1745,19 +1745,61 @@
             if (s2.tradeMoneySearch) tradeMoneyFeature.tryStart();
         }
 
-        // EXP 條顯示 exp/expToNext（取代百分比）
+        // EXP 按鈕 tooltip（旁邊小圖示，點擊切換顯示/隱藏）
+        const _expBtnId = '__lh5_exp_tip_btn';
+        const _expTipId = '__lh5_exp_tip';
         const expTxt = document.getElementById('t-exp-txt');
         const expBar = document.getElementById('t-exp-bar');
-        if (expTxt && expBar) {
-            try {
-                const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
-                const c = w.__lh5_char;
-                if (c && c.exp !== undefined && c.expToNext !== undefined) {
-                    const pct = expBar.style.width || '0%';
-                    const pct = expBar.style.width || '0%';
-                    expTxt.textContent = pct + '\n' + c.exp + ' / ' + c.expToNext;
+        if (expTxt && expBar && !document.getElementById(_expBtnId)) {
+            // 建立按鈕
+            const btn = document.createElement('span');
+            btn.id = _expBtnId;
+            btn.textContent = '📊';
+            btn.style.cssText = 'cursor:pointer;font-size:12px;margin-left:4px;user-select:none;opacity:0.5;transition:opacity .2s;vertical-align:middle';
+            btn.title = '顯示經驗資訊';
+            // 建立浮標
+            const tip = document.createElement('span');
+            tip.id = _expTipId;
+            tip.style.cssText = 'display:none;position:absolute;background:#1a1a2e;border:1px solid #c8a96e;border-radius:6px;padding:4px 8px;font-size:11px;color:#fff;white-space:nowrap;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.5)';
+            document.body.appendChild(tip);
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const shown = tip.style.display !== 'none';
+                if (shown) {
+                    tip.style.display = 'none';
+                    btn.style.opacity = '0.5';
+                } else {
+                    try {
+                        const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                        const c = w.__lh5_char;
+                        if (c && c.exp !== undefined && c.expToNext !== undefined) {
+                            const pct = expBar.style.width || '0%';
+                            tip.textContent = pct + '  ' + c.exp + ' / ' + c.expToNext;
+                        } else {
+                            tip.textContent = '等待資料…';
+                        }
+                    } catch(_) { tip.textContent = 'error'; }
+                    // 定位在按鈕下方
+                    const rect = btn.getBoundingClientRect();
+                    tip.style.left = Math.max(0, rect.left + (rect.width / 2) - 60) + 'px';
+                    tip.style.top = (rect.bottom + 4) + 'px';
+                    tip.style.display = 'block';
+                    btn.style.opacity = '1';
                 }
-            } catch(_) {}
+            });
+
+            // 點擊其他地方關閉
+            document.addEventListener('click', (e) => {
+                if (e.target !== btn && e.target !== tip) {
+                    tip.style.display = 'none';
+                    btn.style.opacity = '0.5';
+                }
+            });
+
+            expTxt.parentNode.appendChild(btn);
+            // 隱藏原本文字
+            expTxt.style.display = 'none';
         }
     }, 400);
 
