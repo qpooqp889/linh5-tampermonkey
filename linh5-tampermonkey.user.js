@@ -302,9 +302,35 @@
         const s = loadSettings();
         let html = SETTINGS_DEF.map(d => {
             const c = s[d.key] ? 'checked' : '';
+            if (d.key === 'autoFarm') {
+                // 掛機腳本：改用展開/收合圖示，不顯示 toggle
+                const arrow = s.autoFarm ? '▼' : '▶';
+                return `<div class="lh5-switch-row lh5-farm-toggle-row" style="cursor:pointer;user-select:none">
+                    <label class="lh5-switch-label" style="cursor:pointer">
+                        <div>${d.label}</div>
+                        ${d.desc?`<div class="desc">${d.desc}</div>`:''}
+                    </label>
+                    <span class="lh5-farm-arrow" style="font-size:14px;color:#888;flex-shrink:0;margin-left:12px;transition:transform .2s">${arrow}</span>
+                </div>`;
+            }
+            if (d.key === 'nameChange') {
+                // 變更姓名維持開關 + 輸入框邏輯
+                return `<div class="lh5-switch-row"><label class="lh5-switch-label"><div>${d.label}</div>${d.desc?`<div class="desc">${d.desc}</div>`:''}</label><label class="lh5-toggle"><input type="checkbox" data-key="${d.key}" ${c}><span class="slider"></span></label></div>`;
+            }
             return `<div class="lh5-switch-row"><label class="lh5-switch-label"><div>${d.label}</div>${d.desc?`<div class="desc">${d.desc}</div>`:''}</label><label class="lh5-toggle"><input type="checkbox" data-key="${d.key}" ${c}><span class="slider"></span></label></div>`;
         }).join('');
         document.getElementById('lh5-modal-body').innerHTML = html;
+        // 掛機腳本展開/收合
+        const farmRow = document.querySelector('.lh5-farm-toggle-row');
+        if (farmRow) {
+            farmRow.addEventListener('click', () => {
+                const s2 = loadSettings();
+                s2.autoFarm = !s2.autoFarm;
+                saveSettings(s2);
+                renderSettings();
+                applyFeature('autoFarm', s2.autoFarm);
+            });
+        }
         // 變更姓名開關開啟時，在該 switch-row 內插入輸入框（同一層）
         if (s.nameChange) {
             const curName = localStorage.getItem(NAME_KEY) || '';
