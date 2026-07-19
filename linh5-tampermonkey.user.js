@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.64
+// @version      2.65
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1506,6 +1506,90 @@
     const bossCountdownEl = document.createElement('span');
     bossCountdownEl.id = 'lh5-boss-countdown';
 
+    // ============================================================
+    //  🔄 戰鬥面板自動送 bossAction（每個 bcell card 加上 toggle）
+    // ============================================================
+    const BA_KEY = 'lh5_boss_auto';
+    let _bossAutoTimer = null;
+
+    function getBossAutoSettings() {
+        try {
+            const raw = localStorage.getItem(BA_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch (_) { return {}; }
+    }
+
+    function setBossAutoSetting(act, on) {
+        const s = getBossAutoSettings();
+        if (on) s[act] = true;
+        else delete s[act];
+        localStorage.setItem(BA_KEY, JSON.stringify(s));
+    }
+
+    function injectBossAutoToggles() {
+        document.querySelectorAll('.bcell').forEach(el => {
+            if (el.querySelector('.lh5-ba-toggle')) return;
+            const act = el.dataset.act;
+            if (!act) return;
+            const settings = getBossAutoSettings();
+            const checked = settings[act] || false;
+            const toggle = document.createElement('span');
+            toggle.className = 'lh5-ba-toggle' + (checked ? ' on' : '');
+            toggle.textContent = checked ? '🔁' : '⏹';
+            toggle.title = checked ? '自動送出中' : '點擊開啟自動';
+            toggle.style.cssText = 'position:absolute;top:2px;right:2px;font-size:11px;cursor:pointer;z-index:5;opacity:.7;transition:opacity .15s;user-select:none;line-height:1';
+            toggle.addEventListener('click', e => {
+                e.stopPropagation();
+                const nowOn = !toggle.classList.contains('on');
+                toggle.classList.toggle('on', nowOn);
+                toggle.textContent = nowOn ? '🔁' : '⏹';
+                toggle.title = nowOn ? '自動送出中' : '點擊開啟自動';
+                setBossAutoSetting(act, nowOn);
+            });
+            el.style.position = 'relative';
+            el.appendChild(toggle);
+        });
+    }
+
+    function bossAutoTick() {
+        const settings = getBossAutoSettings();
+        const acts = Object.keys(settings);
+        if (!acts.length) return;
+
+        // 檢查是否在戰鬥中
+        if (typeof lastState === 'undefined' || !lastState) return;
+        if (lastState.mode !== 'bosscombat' && lastState.mode !== 'combat') return;
+
+        const boss = lastState.boss || {};
+        const cd = boss.cd || {};
+
+        acts.forEach(act => {
+            // 檢查 cd
+            const cdSec = cd[act];
+            if (cdSec && cdSec > 0.1) return; // 還在冷卻
+
+            // 檢查 bcell 是否 dis
+            const cell = document.getElementById('bcell-' + act);
+            if (cell && cell.classList.contains('dis')) return;
+
+            // 送封包
+            if (typeof socket !== 'undefined' && socket && typeof socket.emit === 'function') {
+                socket.emit('bossAction', act);
+            }
+        });
+    }
+
+    function startBossAuto() {
+        // 每 600ms 注入 toggle（DOM 重建時補上）
+        setInterval(() => {
+            if (!document.querySelector('.bcell')) return;
+            injectBossAutoToggles();
+        }, 800);
+
+        // 每 300ms 檢查並送封包
+        _bossAutoTimer = setInterval(bossAutoTick, 300);
+    }
+
     function startBossCountdown() {
         setInterval(() => {
             const now = new Date();
@@ -1731,6 +1815,7 @@
     startBossCountdown();
     startAfkCheck();
     initFeatures();
+    startBossAuto();
 
     // ============================================================
     //  🛡️ 超級巡邏員（唯一 setInterval — 永遠有效，輕量無害）
