@@ -1884,7 +1884,8 @@
             if (s.tradeMoneySearch) { tradeMoneyFeature.disable(); tradeMoneyFeature.tryStart(); }
 	            // autoFarm：根據自動執行設定決定是否重啟
 	            const autoRunEnabled = localStorage.getItem(FARM_AUTO_RUN_KEY) !== '0';
-	            if (s.autoFarm && (autoFarmFeature.isRunning() || autoRunEnabled)) {
+	            const farmUiOpen = localStorage.getItem('lh5_farm_ui_open') !== '0';
+	            if ((s.autoFarm || farmUiOpen) && (autoFarmFeature.isRunning() || autoRunEnabled)) {
 	                autoFarmFeature.stop();
 	                autoFarmFeature.runWithConfig();
 	            } else if (autoFarmFeature.isRunning()) {
