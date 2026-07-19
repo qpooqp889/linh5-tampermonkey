@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.55
+// @version      2.56
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1754,7 +1754,7 @@
                 const c = w.__lh5_char;
                 if (c && c.exp !== undefined && c.expToNext !== undefined) {
                     const pct = expBar.style.width || '0%';
-                    expTxt.textContent = pct + '  ' + c.exp + ' / ' + c.expToNext;
+                    expTxt.textContent = c.exp + ' / ' + c.expToNext;
                 }
             } catch(_) {}
         }
