@@ -161,7 +161,9 @@
             max-height:90vh;overflow-y:auto;
             box-shadow:0 8px 40px rgba(0,0,0,0.6);color:#e0d5c1;font-size:14px;
         }
-        #lh5-modal h2 { margin:0 0 20px;font-size:18px;color:#c8a96e;border-bottom:1px solid #333;padding-bottom:10px; }
+        #lh5-modal h2 { margin:0;font-size:18px;color:#c8a96e;padding:12px 16px;border-bottom:1px solid #333;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#1a1a2e;z-index:10;border-radius:12px 12px 0 0; }
+        #lh5-modal-close-x { cursor:pointer;color:#ff4444;font-size:18px;font-weight:bold;line-height:1;padding:2px 6px;border-radius:4px;transition:background .15s;user-select:none; }
+        #lh5-modal-close-x:hover { background:rgba(255,68,68,0.2); }
         .lh5-switch-row { display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #2a2a3e; }
         .lh5-switch-row:last-child { border-bottom:none; }
         .lh5-switch-label { flex:1;cursor:pointer; }
@@ -172,8 +174,7 @@
         .lh5-toggle .slider::after { content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#ccc;border-radius:50%;transition:transform .25s,background .25s; }
         .lh5-toggle input:checked + .slider { background:#c8a96e; }
         .lh5-toggle input:checked + .slider::after { transform:translateX(20px);background:#fff; }
-        #lh5-modal-close-hint { text-align:right;font-size:12px;color:#666;margin-top:12px;cursor:pointer; }
-        #lh5-modal-close-hint:hover { color:#aaa; }
+
 
         #lh5-friend-btn {
             display:inline-flex;align-items:center;justify-content:center;
@@ -278,21 +279,21 @@
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.23 (${dateStr})</span></h2><div id="lh5-modal-body"></div><div id="lh5-modal-close-hint">關閉</div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.62 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
-    overlay.addEventListener('click', e => { if (e.target === overlay || e.target.id === 'lh5-modal-close-hint') overlay.classList.remove('open'); });
+    overlay.addEventListener('click', e => { if (e.target === overlay || e.target.id === 'lh5-modal-close-x') overlay.classList.remove('open'); });
 
     // ============================================================
     //  📋 設定面板
     // ============================================================
     const SETTINGS_DEF = [
+        { key: 'autoFarm', label: '🤖 掛機腳本', desc: 'MP過低自動回大廳，MP足夠自動前往地圖掛機' },
         { key: 'bossPinAlive', label: '世界王自動更新置頂', desc: '將「存活中」的世界王自動排到列表最前面' },
         { key: 'bagSearch', label: '背包物品檢索', desc: '在背包上方新增搜尋框與 +4~+10 強化篩選下拉' },
         { key: 'tradeMoneySearch', label: '交易所金錢搜尋', desc: '在交易所新增金額模糊搜尋 + 價格簡寫' },
         { key: 'nameChange', label: '變更姓名', desc: '自訂顯示名稱（不影響伺服器）' },
-        { key: 'autoFarm', label: '🤖 掛機腳本', desc: 'MP過低自動回大廳，MP足夠自動前往地圖掛機' },
     ];
     function getStored(key, def) {
         try { const r = localStorage.getItem(key); return r !== null ? r : def; } catch (_) { return def; }
