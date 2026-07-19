@@ -1528,6 +1528,7 @@
     }
 
     function injectBossAutoToggles() {
+        // bcell 版
         document.querySelectorAll('.bcell').forEach(el => {
             if (el.querySelector('.lh5-ba-toggle')) return;
             const act = el.dataset.act;
@@ -1550,6 +1551,30 @@
             el.style.position = 'relative';
             el.appendChild(toggle);
         });
+        // slot 版（新 UI）
+        document.querySelectorAll('.slot[data-k]').forEach(el => {
+            if (el.querySelector('.lh5-ba-toggle')) return;
+            let k = el.dataset.k.trim();
+            // data-k="　"（空白）= heal
+            if (!k || k === 'heal') k = 'heal';
+            const settings = getBossAutoSettings();
+            const checked = settings[k] || false;
+            const toggle = document.createElement('span');
+            toggle.className = 'lh5-ba-toggle' + (checked ? ' on' : '');
+            toggle.textContent = checked ? '🔁' : '⏹';
+            toggle.title = checked ? '自動送出中' : '點擊開啟自動';
+            toggle.style.cssText = 'position:absolute;top:2px;left:10px;width:20px;height:20px;font-size:12px;cursor:pointer;z-index:5;opacity:.7;transition:opacity .15s;user-select:none;line-height:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);border-radius:3px';
+            toggle.addEventListener('click', e => {
+                e.stopPropagation();
+                const nowOn = !toggle.classList.contains('on');
+                toggle.classList.toggle('on', nowOn);
+                toggle.textContent = nowOn ? '🔁' : '⏹';
+                toggle.title = nowOn ? '自動送出中' : '點擊開啟自動';
+                setBossAutoSetting(k, nowOn);
+            });
+            el.style.position = 'relative';
+            el.appendChild(toggle);
+        });
     }
 
     function bossAutoTick() {
@@ -1564,10 +1589,24 @@
         const boss = lastState.boss || {};
         const cd = boss.cd || {};
 
-        acts.forEach(act => {
+        acts.forEach(k => {
+            if (!settings[k]) return;
+
+            // slot key → 讀取 select 的值作為實際 action
+            let act = k;
+            const slot = document.querySelector(`.slot[data-k="${k}"], .slot[data-k=" ${k}"]`);
+            if (slot) {
+                const sel = slot.querySelector('select');
+                if (sel) {
+                    const v = sel.value.trim();
+                    if (!v) return;
+                    act = v;
+                }
+            }
+
             // 檢查 cd
             const cdSec = cd[act];
-            if (cdSec && cdSec > 0.1) return; // 還在冷卻
+            if (cdSec && cdSec > 0.1) return;
 
             // 檢查 bcell 是否 dis
             const cell = document.getElementById('bcell-' + act);
@@ -1583,7 +1622,7 @@
     function startBossAuto() {
         // 每 600ms 注入 toggle（DOM 重建時補上）
         setInterval(() => {
-            if (!document.querySelector('.bcell')) return;
+            if (!document.querySelector('.bcell') && !document.querySelector('.slot[data-k]')) return;
             injectBossAutoToggles();
         }, 800);
 
