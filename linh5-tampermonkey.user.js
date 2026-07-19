@@ -261,7 +261,7 @@
         .lh5-star:hover { transform:scale(1.25); }
         .lh5-star.pinned { color:#fbbf24; }
         .lh5-star:not(.pinned) { color:#444; }
-        #t-exp-txt { color:#fff !important; }
+        #t-exp-txt { color:#fff !important; white-space:pre-wrap; line-height:1.2; }
         .wb-r1 { display:flex;align-items:center; }
         .lh5-boss-countdown { color:#fbbf24; font-weight:bold; margin-right:6px; }
         
@@ -1754,7 +1754,8 @@
                 const c = w.__lh5_char;
                 if (c && c.exp !== undefined && c.expToNext !== undefined) {
                     const pct = expBar.style.width || '0%';
-                    expTxt.textContent = c.exp + ' / ' + c.expToNext;
+                    const pct = expBar.style.width || '0%';
+                    expTxt.textContent = pct + '\n' + c.exp + ' / ' + c.expToNext;
                 }
             } catch(_) {}
         }
