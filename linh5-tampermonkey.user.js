@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.59
+// @version      2.60
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -260,8 +260,8 @@
         .lh5-star { cursor:pointer;font-size:16px;line-height:1;margin-right:4px;user-select:none;transition:transform .15s;flex-shrink:0; }
         .lh5-star:hover { transform:scale(1.25); }
         .lh5-star.pinned { color:#fbbf24; }
-        .lh5-star:not(.pinned) { color:#444; }
-        #t-exp-txt { display:none !important; }
+                .lh5-star:not(.pinned) { color:#444; }
+        #__lh5_exp_tip { position:fixed;z-index:999999;background:#1a1a2e;border:1px solid #c8a96e;border-radius:8px;padding:6px 10px;font-size:12px;color:#e0d5c1;box-shadow:0 4px 16px rgba(0,0,0,0.6);display:none;pointer-events:none;white-space:nowrap; }
         .wb-r1 { display:flex;align-items:center; }
         .lh5-boss-countdown { color:#fbbf24; font-weight:bold; margin-right:6px; }
         
@@ -1745,9 +1745,11 @@
             if (s2.tradeMoneySearch) tradeMoneyFeature.tryStart();
         }
 
-        // EXP 文字 toggle 按鈕（點一下顯示 expTxt，再點隱藏）
+        // EXP 浮動 tip 按鈕（點一下跳出浮動框，再點隱藏）
         const _expBtnId = '__lh5_exp_toggle';
+        const _expTipId = '__lh5_exp_tip';
         const expTxt = document.getElementById('t-exp-txt');
+        const expBar = document.getElementById('t-exp-bar');
         if (expTxt && !document.getElementById(_expBtnId)) {
             expTxt.style.display = 'none';
             const btn = document.createElement('span');
@@ -1755,12 +1757,36 @@
             btn.textContent = '📊';
             btn.style.cssText = 'cursor:pointer;font-size:11px;margin-left:4px;user-select:none;opacity:0.4;transition:opacity .2s;vertical-align:middle';
             btn.title = '點擊切換經驗數字顯示';
-            btn.addEventListener('click', () => {
-                if (expTxt.style.display === 'none') {
-                    expTxt.style.display = '';
-                    btn.style.opacity = '1';
+            // 建立浮動 tip
+            const tip = document.createElement('div');
+            tip.id = _expTipId;
+            document.body.appendChild(tip);
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (tip.style.display === 'block') {
+                    tip.style.display = 'none';
+                    btn.style.opacity = '0.4';
                 } else {
-                    expTxt.style.display = 'none';
+                    try {
+                        const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                        const c = w.__lh5_char;
+                        const pct = expBar ? (expBar.style.width || '0%') : '0%';
+                        if (c && c.exp !== undefined && c.expToNext !== undefined) {
+                            tip.textContent = pct + '  ' + c.exp + ' / ' + c.expToNext;
+                        } else {
+                            tip.textContent = pct + '  等待資料…';
+                        }
+                    } catch(_) { tip.textContent = 'error'; }
+                    const rect = btn.getBoundingClientRect();
+                    tip.style.left = Math.max(4, Math.min(window.innerWidth - tip.offsetWidth - 4, rect.right - 40)) + 'px';
+                    tip.style.top = (rect.bottom + 4) + 'px';
+                    tip.style.display = 'block';
+                    btn.style.opacity = '1';
+                }
+            });
+            document.addEventListener('click', (e) => {
+                if (e.target !== btn) {
+                    tip.style.display = 'none';
                     btn.style.opacity = '0.4';
                 }
             });
