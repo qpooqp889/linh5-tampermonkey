@@ -60,6 +60,7 @@
         { id: 'zone_05', name: '國境要塞' },
         { id: 'dream_island', name: '夢幻之島' },
         { id: 'oblivion_island', name: '遺忘之島' },
+        { id: 'twilight_mt', name: '黃昏山脈' },
         // ── 地監 ──
         { id: 'zone_06', name: '古魯丁地監1樓' },
         { id: 'zone_07', name: '古魯丁地監2樓' },
