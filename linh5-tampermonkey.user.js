@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.53
+// @version      2.54
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -261,6 +261,7 @@
         .lh5-star:hover { transform:scale(1.25); }
         .lh5-star.pinned { color:#fbbf24; }
         .lh5-star:not(.pinned) { color:#444; }
+        #t-exp-txt { color:#fff !important; }
         .wb-r1 { display:flex;align-items:center; }
         .lh5-boss-countdown { color:#fbbf24; font-weight:bold; margin-right:6px; }
         
@@ -936,7 +937,7 @@
         if (!document.getElementById('__lh5_inv_bridge')) {
             const s = document.createElement('script');
             s.id = '__lh5_inv_bridge';
-            s.textContent = 'try{window.__lh5_inv=(typeof lastState!=="undefined"&&lastState)?lastState.inv:null}catch(e){}setInterval(()=>{try{window.__lh5_inv=(typeof lastState!=="undefined"&&lastState)?lastState.inv:null}catch(e){window.__lh5_inv=null}},500)';
+            s.textContent = 'try{window.__lh5_inv=(typeof lastState!=="undefined"&&lastState)?lastState.inv:null;window.__lh5_char=(typeof lastState!=="undefined"&&lastState&&lastState.char)?lastState.char:null}catch(e){}setInterval(()=>{try{window.__lh5_inv=(typeof lastState!=="undefined"&&lastState)?lastState.inv:null;window.__lh5_char=(typeof lastState!=="undefined"&&lastState&&lastState.char)?lastState.char:null}catch(e){window.__lh5_inv=null;window.__lh5_char=null}},500)';
             document.documentElement.appendChild(s);
         }
 
@@ -1012,19 +1013,21 @@
         }
 
         function getMPPercent() {
-            const bar = document.getElementById('p-mp');
-            if (!bar) return 100;
-            const w = bar.style.width;
-            if (!w) return 100;
-            return parseFloat(w) || 100;
+            try {
+                const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                const c = w.__lh5_char;
+                if (c && c.mp !== undefined && c.maxMp > 0) return (c.mp / c.maxMp) * 100;
+            } catch(_) {}
+            return 100;
         }
 
         function getHPPercent() {
-            const bar = document.getElementById('p-hp');
-            if (!bar) return 100;
-            const w = bar.style.width;
-            if (!w) return 100;
-            return parseFloat(w) || 100;
+            try {
+                const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                const c = w.__lh5_char;
+                if (c && c.hp !== undefined && c.maxHp > 0) return (c.hp / c.maxHp) * 100;
+            } catch(_) {}
+            return 100;
         }
 
         function getCurrentZoneName() {
@@ -1740,6 +1743,19 @@
         if (document.getElementById('trade-search') && !document.getElementById('lh5-trade-money')) {
             const s2 = loadSettings();
             if (s2.tradeMoneySearch) tradeMoneyFeature.tryStart();
+        }
+
+        // EXP 條顯示 exp/expToNext（取代百分比）
+        const expTxt = document.getElementById('t-exp-txt');
+        const expBar = document.getElementById('t-exp-bar');
+        if (expTxt && expBar) {
+            try {
+                const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                const c = w.__lh5_char;
+                if (c && c.exp !== undefined && c.expToNext !== undefined) {
+                    expTxt.textContent = c.exp + ' / ' + c.expToNext;
+                }
+            } catch(_) {}
         }
     }, 400);
 
