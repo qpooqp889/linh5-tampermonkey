@@ -28,6 +28,7 @@
     const FARM_ZONE_KEY = 'lh5_farm_zone';
     const FARM_SLOT_KEY = 'lh5_farm_slot';
     const FARM_RECONNECT_KEY = 'lh5_farm_reconnect';
+    const FARM_UI_KEY = 'lh5_farm_ui_open'; // 僅 UI 展開/收合
     const FARM_MP_ENABLED_KEY = 'lh5_farm_mp_enabled';
     const FARM_HP_ENABLED_KEY = 'lh5_farm_hp_enabled';
     const FARM_HP_LOW_KEY = 'lh5_farm_hp_low';
@@ -305,7 +306,8 @@
             const c = s[d.key] ? 'checked' : '';
             if (d.key === 'autoFarm') {
                 // 掛機腳本：改用展開/收合圖示，不顯示 toggle
-                const arrow = s.autoFarm ? '▼' : '▶';
+                const uiOpen = localStorage.getItem('lh5_farm_ui_open') !== '0';
+                const arrow = uiOpen ? '▼' : '▶';
                 return `<div class="lh5-switch-row lh5-farm-toggle-row" style="cursor:pointer;user-select:none">
                     <label class="lh5-switch-label" style="cursor:pointer">
                         <div>${d.label}</div>
@@ -326,10 +328,9 @@
         if (farmRow) {
             farmRow.addEventListener('click', () => {
                 const s2 = loadSettings();
-                s2.autoFarm = !s2.autoFarm;
-                saveSettings(s2);
+                // 收合只影響 UI，不影響掛機執行
+                localStorage.setItem(FARM_UI_KEY, s2.autoFarm ? '0' : '1');
                 renderSettings();
-                applyFeature('autoFarm', s2.autoFarm);
             });
         }
         // 變更姓名開關開啟時，在該 switch-row 內插入輸入框（同一層）
@@ -360,8 +361,8 @@
                 }
             }
         }
-        // 🤖 掛機腳本開關開啟時，插入參數 UI
-        if (s.autoFarm) {
+        // 🤖 掛機腳本開關開啟時，插入參數 UI（用 UI key 判斷）
+        if (localStorage.getItem('lh5_farm_ui_open') !== '0') {
             const farmLowVal = localStorage.getItem(FARM_LOW_KEY) || '10';
             const farmHighVal = localStorage.getItem(FARM_HIGH_KEY) || '80';
             const farmZoneVal = localStorage.getItem(FARM_ZONE_KEY) || 'zone_07';
