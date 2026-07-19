@@ -1753,7 +1753,8 @@
                 const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
                 const c = w.__lh5_char;
                 if (c && c.exp !== undefined && c.expToNext !== undefined) {
-                    expTxt.textContent = c.exp + ' / ' + c.expToNext;
+                    const pct = expBar.style.width || '0%';
+                    expTxt.textContent = pct + '  ' + c.exp + ' / ' + c.expToNext;
                 }
             } catch(_) {}
         }
