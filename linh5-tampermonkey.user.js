@@ -373,8 +373,8 @@
             const lobbyMode = 'toLobby'; // 固定回大廳
             const rows = document.querySelectorAll('#lh5-modal-body .lh5-switch-row');
             for (const row of rows) {
-                const cb = row.querySelector('input[data-key="autoFarm"]');
-                if (cb) {
+                // autoFarm 改用 .lh5-farm-toggle-row 比對
+                if (!row.classList.contains('lh5-farm-toggle-row')) continue;
                     const wrapper = document.createElement('div');
                     wrapper.style.cssText = 'margin-top:8px;width:100%';
                     const weapons = scanWeapons();
@@ -468,10 +468,9 @@
                     wrapper.appendChild(runBtn);
                     row.parentNode.insertBefore(wrapper, row.nextSibling);
                     break;
-                }
+                break;
             }
-        }
-        document.querySelectorAll('#lh5-modal-body .lh5-toggle input[type="checkbox"]').forEach(cb => {
+        }('#lh5-modal-body .lh5-toggle input[type="checkbox"]').forEach(cb => {
             cb.addEventListener('change', () => {
                 const k = cb.dataset.key, s2 = loadSettings(); s2[k] = cb.checked; saveSettings(s2);
                 renderSettings();
