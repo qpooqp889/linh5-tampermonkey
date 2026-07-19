@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.69
+// @version      2.70
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -267,7 +267,9 @@
                 .lh5-star:not(.pinned) { color:#444; }
         .wb-r1 { display:flex;align-items:center; }
         .lh5-boss-countdown { color:#fbbf24; font-weight:bold; margin-right:6px; }
-        
+        .lh5-ba-toggle { display:inline-flex;align-items:center;justify-content:center; }
+        .lh5-ba-toggle.on { background:#16a34a;color:#fff; }
+        .lh5-ba-toggle:not(.on) { background:#dc2626;color:#fff; }
 
     `);
 
@@ -275,13 +277,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.69 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.70 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.69 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.70 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -1538,15 +1540,18 @@
             const checked = settings[act] || false;
             const toggle = document.createElement('span');
             toggle.className = 'lh5-ba-toggle' + (checked ? ' on' : '');
-            toggle.textContent = checked ? '🔁' : '⏹';
+            toggle.textContent = checked ? '▶' : '■';
             toggle.title = checked ? '自動送出中' : '點擊開啟自動';
-            toggle.style.cssText = 'position:absolute;top:2px;left:10px;width:20px;height:20px;font-size:12px;cursor:pointer;z-index:5;opacity:.7;transition:opacity .15s;user-select:none;line-height:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);border-radius:3px';
+            toggle.style.cssText = 'position:absolute;top:4px;left:10px;width:22px;height:18px;font-size:10px;cursor:pointer;z-index:5;user-select:none;line-height:1;display:flex;align-items:center;justify-content:center;border-radius:4px;font-weight:bold;transition:background .2s,color .2s' + (checked ? ';background:#16a34a;color:#fff' : ';background:#dc2626;color:#fff');
             toggle.addEventListener('click', e => {
                 e.stopPropagation();
                 const nowOn = !toggle.classList.contains('on');
                 toggle.classList.toggle('on', nowOn);
-                toggle.textContent = nowOn ? '🔁' : '⏹';
+                toggle.textContent = nowOn ? '▶' : '■';
                 toggle.title = nowOn ? '自動送出中' : '點擊開啟自動';
+                toggle.style.border = '';
+                if (nowOn) { toggle.style.background = '#16a34a'; toggle.style.color = '#fff'; }
+                else { toggle.style.background = '#dc2626'; toggle.style.color = '#fff'; }
                 setBossAutoSetting(act, nowOn);
             });
             el.style.position = 'relative';
@@ -1562,15 +1567,17 @@
             const checked = settings[k] || false;
             const toggle = document.createElement('span');
             toggle.className = 'lh5-ba-toggle' + (checked ? ' on' : '');
-            toggle.textContent = checked ? '🔁' : '⏹';
+            toggle.textContent = checked ? '▶' : '■';
             toggle.title = checked ? '自動送出中' : '點擊開啟自動';
-            toggle.style.cssText = 'position:absolute;top:2px;left:10px;width:20px;height:20px;font-size:12px;cursor:pointer;z-index:5;opacity:.7;transition:opacity .15s;user-select:none;line-height:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);border-radius:3px';
+            toggle.style.cssText = 'position:absolute;top:4px;left:10px;width:22px;height:18px;font-size:10px;cursor:pointer;z-index:5;user-select:none;line-height:1;display:flex;align-items:center;justify-content:center;border-radius:4px;font-weight:bold;transition:background .2s,color .2s' + (checked ? ';background:#16a34a;color:#fff' : ';background:#dc2626;color:#fff');
             toggle.addEventListener('click', e => {
                 e.stopPropagation();
                 const nowOn = !toggle.classList.contains('on');
                 toggle.classList.toggle('on', nowOn);
-                toggle.textContent = nowOn ? '🔁' : '⏹';
+                toggle.textContent = nowOn ? '▶' : '■';
                 toggle.title = nowOn ? '自動送出中' : '點擊開啟自動';
+                if (nowOn) { toggle.style.background = '#16a34a'; toggle.style.color = '#fff'; }
+                else { toggle.style.background = '#dc2626'; toggle.style.color = '#fff'; }
                 setBossAutoSetting(k, nowOn);
             });
             el.style.position = 'relative';
