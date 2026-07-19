@@ -145,6 +145,7 @@
             border-top-color:#22c55e;
             border-right-color:#22c55e;
             animation:lh5-spin 1s linear infinite;
+            pointer-events:none;
         }
         @keyframes lh5-spin {
             to { transform:rotate(360deg); }
@@ -1536,7 +1537,7 @@
             toggle.className = 'lh5-ba-toggle' + (checked ? ' on' : '');
             toggle.textContent = checked ? '🔁' : '⏹';
             toggle.title = checked ? '自動送出中' : '點擊開啟自動';
-            toggle.style.cssText = 'position:absolute;top:0;left:0;width:16px;height:16px;font-size:12px;cursor:pointer;z-index:5;opacity:.7;transition:opacity .15s;user-select:none;line-height:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);border-radius:3px';
+            toggle.style.cssText = 'position:absolute;top:2px;left:10px;width:20px;height:20px;font-size:12px;cursor:pointer;z-index:5;opacity:.7;transition:opacity .15s;user-select:none;line-height:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);border-radius:3px';
             toggle.addEventListener('click', e => {
                 e.stopPropagation();
                 const nowOn = !toggle.classList.contains('on');
