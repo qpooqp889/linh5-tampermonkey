@@ -1755,7 +1755,7 @@
             const btn = document.createElement('span');
             btn.id = _expBtnId;
             btn.textContent = '📊';
-            btn.style.cssText = 'cursor:pointer;font-size:11px;margin-left:4px;user-select:none;opacity:0.4;transition:opacity .2s;vertical-align:middle';
+            btn.style.cssText = 'cursor:pointer;font-size:11px;margin-left:4px;user-select:none;opacity:0.4;transition:opacity .2s;vertical-align:middle;z-index:999999;position:relative';
             btn.title = '點擊切換經驗數字顯示';
             // 建立浮動 tip
             const tip = document.createElement('div');
