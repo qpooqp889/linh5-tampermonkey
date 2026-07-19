@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.68
+// @version      2.69
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -20,7 +20,7 @@
     //  ⚙ 設定 + localStorage
     // ============================================================
     const STORAGE_KEY = 'lh5_settings';
-    const DEFAULTS = { bossPinAlive: true, bagSearch: true, nameChange: false, autoFarm: false, gachaAuto: false };
+    const DEFAULTS = { bossPinAlive: true, bagSearch: true, nameChange: false, autoFarm: false };
     const PINNED_KEY = 'lh5_pinned_bosses';
     const NAME_KEY = 'lh5_custom_name';
     const FARM_LOW_KEY = 'lh5_farm_mp_low';
@@ -275,13 +275,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.68 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.69 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.68 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.69 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -292,7 +292,6 @@
     // ============================================================
     const SETTINGS_DEF = [
         { key: 'autoFarm', label: '🤖 掛機腳本', desc: 'MP過低自動回大廳，MP足夠自動前往地圖掛機' },
-        { key: 'gachaAuto', label: '🎰 世界王抽抽樂自動抽', desc: '每3秒自動點擊抽獎（需在世界王畫面）' },
         { key: 'bossPinAlive', label: '世界王自動更新置頂', desc: '將「存活中」的世界王自動排到列表最前面' },
         { key: 'bagSearch', label: '背包物品檢索', desc: '在背包上方新增搜尋框與 +4~+10 強化篩選下拉' },
         { key: 'tradeMoneySearch', label: '交易所金錢搜尋', desc: '在交易所新增金額模糊搜尋 + 價格簡寫' },
@@ -1236,7 +1235,6 @@
         if (k === 'tradeMoneySearch') { if (en) tradeMoneyFeature.tryStart(); else tradeMoneyFeature.disable(); }
         if (k === 'nameChange') { nameFeature(en); }
         if (k === 'autoFarm') { if (!en) autoFarmFeature.stop(); }
-        if (k === 'gachaAuto') { if (en) gachaAutoStart(); else gachaAutoStop(); }
     }
     function initFeatures() { const s = loadSettings(); SETTINGS_DEF.forEach(d => applyFeature(d.key, s[d.key])); }
 
@@ -1718,46 +1716,97 @@
     function getGachaHistory() {
         try { return JSON.parse(localStorage.getItem(GACHA_HISTORY_KEY) || '[]'); } catch(_) { return []; }
     }
-    function addGachaHistory(item) {
+    function addGachaHistory(itemHtml) {
         const h = getGachaHistory();
-        h.unshift({ item: item, time: new Date().toLocaleTimeString() });
+        h.unshift({ item: itemHtml, time: new Date().toLocaleTimeString() });
         if (h.length > 200) h.length = 200;
         localStorage.setItem(GACHA_HISTORY_KEY, JSON.stringify(h));
     }
-    function clearGachaHistory() {
-        localStorage.removeItem(GACHA_HISTORY_KEY);
+    function clearGachaHistory() { localStorage.removeItem(GACHA_HISTORY_KEY); }
+
+    // 🎰 黑市 header 右邊的 switch
+    function injectGachaSwitch() {
+        const hd = document.querySelector('.shop-hd');
+        if (!hd) return;
+        if (document.getElementById('lh5-gacha-switch')) return;
+
+        const wrap = document.createElement('span');
+        wrap.id = 'lh5-gacha-switch';
+        wrap.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-left:8px;flex-shrink:0;font-size:12px;color:#888;cursor:pointer;user-select:none';
+        wrap.title = '自動抽抽樂（每 3 秒）';
+
+        const label = document.createElement('span');
+        label.textContent = '🎰';
+
+        const toggle = document.createElement('span');
+        toggle.style.cssText = 'display:inline-block;width:28px;height:14px;border-radius:7px;background:#444;position:relative;transition:background .2s';
+        const dot = document.createElement('span');
+        dot.style.cssText = 'display:inline-block;width:10px;height:10px;border-radius:50%;background:#ccc;position:absolute;top:2px;left:2px;transition:transform .2s,background .2s';
+        toggle.appendChild(dot);
+
+        let running = false;
+        function updateUI() {
+            if (running) {
+                toggle.style.background = '#22c55e';
+                dot.style.transform = 'translateX(14px)';
+                dot.style.background = '#fff';
+                label.textContent = '🔄';
+            } else {
+                toggle.style.background = '#444';
+                dot.style.transform = 'none';
+                dot.style.background = '#ccc';
+                label.textContent = '🎰';
+            }
+        }
+
+        wrap.appendChild(label);
+        wrap.appendChild(toggle);
+        hd.appendChild(wrap);
+
+        wrap.addEventListener('click', () => {
+            running = !running;
+            updateUI();
+            if (running) gachaAutoStart(); else gachaAutoStop();
+        });
     }
 
-    // 🔁 自動抽：每 3 秒點擊 #gacha-wb（需未 disabled）
+    // 🔁 自動抽：每 3 秒直接送 socket wbGacha
     function gachaAutoTick() {
-        const btn = document.getElementById('gacha-wb');
-        if (!btn || btn.disabled) return;
-        btn.click();
-        // 延遲一點抓取結果
+        try {
+            const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+            if (w.__wbEmit) {
+                w.__wbEmit('wbGacha', []);
+            } else if (w.socket && typeof w.socket.emit === 'function') {
+                w.socket.emit('wbGacha', []);
+            } else if (typeof socket !== 'undefined' && socket && typeof socket.emit === 'function') {
+                socket.emit('wbGacha', []);
+            }
+        } catch(_) {}
+
+        // 延遲抓取結果
         setTimeout(() => {
             const msg = document.getElementById('gacha-msg');
             if (!msg) return;
-            // 取出純文字
             const txt = msg.textContent.trim();
-            if (txt && !txt.includes('恭喜獲得')) return; // 不是抽獎結果
+            if (!txt || !txt.includes('恭喜獲得')) return;
             const itemSpan = msg.querySelector('span');
             const itemHtml = itemSpan ? itemSpan.outerHTML : txt;
             addGachaHistory(itemHtml);
-        }, 100);
+        }, 200);
     }
 
     let _gachaTimer = null;
     function gachaAutoStart() {
         if (_gachaTimer) return;
+        gachaAutoTick(); // 立刻一次
         _gachaTimer = setInterval(gachaAutoTick, 3000);
     }
     function gachaAutoStop() {
         if (_gachaTimer) { clearInterval(_gachaTimer); _gachaTimer = null; }
     }
 
-    // 📜 歷史紀錄 Modal
+    // 📜 歷史紀錄 Modal（跟原本一樣）
     function showGachaHistory() {
-        // 移除已存在的
         const existing = document.getElementById('lh5-gacha-hist-overlay');
         if (existing) existing.remove();
 
@@ -1772,12 +1821,12 @@
 
         modal.innerHTML = `
             <h2 style="margin:0 0 12px;font-size:17px;color:#f5c451;border-bottom:1px solid #333;padding-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-                <span>🎰 抽抽樂歷史 (${h.length})</span>
+                <span>🎰 抽抽樂歷史 ($(h.length))</span>
                 <span style="font-size:12px;color:#888;cursor:pointer" id="lh5-gacha-clear">清除全部</span>
             </h2>
             <div style="font-size:12px;color:#666;margin-bottom:8px">點空白關閉</div>
-            ${h.length === 0 ? '<div style="color:#888;padding:20px;text-align:center">尚無紀錄</div>' :
-                h.map((r, i) => `<div style="padding:4px 0;border-bottom:1px solid #1a1a2e;font-size:13px;display:flex;justify-content:space-between"><span>${r.item}</span><span style="color:#666;font-size:11px;flex-shrink:0;margin-left:8px">${r.time}</span></div>`).join('')
+            $(h.length === 0 ? '<div style="color:#888;padding:20px;text-align:center">尚無紀錄</div>' :
+                h.map((r, i) => '<div style="padding:4px 0;border-bottom:1px solid #1a1a2e;font-size:13px;display:flex;justify-content:space-between"><span>' + r.item + '</span><span style="color:#666;font-size:11px;flex-shrink:0;margin-left:8px">' + r.time + '</span></div>').join('')
             }
         `;
 
@@ -1797,7 +1846,7 @@
         }
     }
 
-    // 🎰 抽抽樂按鈕注入（在 #gacha-wb 旁邊加一個 📜）
+    // 📜 按鈕注入（在 #gacha-wb 下方）
     function injectGachaButtons() {
         const gachaBtn = document.getElementById('gacha-wb');
         if (!gachaBtn) return;
@@ -1812,15 +1861,12 @@
         gachaBtn.parentNode.insertBefore(histBtn, gachaBtn.nextSibling);
     }
 
-    // 每隔 1 秒檢查是否需要注入抽抽樂按鈕
     function gachaFeaturesStart() {
         setInterval(() => {
-            if (!document.getElementById('gacha-wb')) return;
-            injectGachaButtons();
+            if (!document.querySelector('.shop-hd')) return;
+            injectGachaSwitch();
+            if (document.getElementById('gacha-wb')) injectGachaButtons();
         }, 1000);
-
-        const s = loadSettings();
-        if (s.gachaAuto) gachaAutoStart();
     }
 
     // ============================================================
@@ -1994,26 +2040,23 @@
             if (!document.getElementById('lh5-selectchar-test')) mountSelectCharTest();
 
             // 重啟功能
-            const s = loadSettings();
+    const s = loadSettings();
             if (s.bossPinAlive) { bossFeature.disable(); bossFeature.tryStart(); }
             if (s.bagSearch) { bagFeature.disable(); bagFeature.tryStart(); }
             if (s.tradeMoneySearch) { tradeMoneyFeature.disable(); tradeMoneyFeature.tryStart(); }
-	            // autoFarm：根據自動執行設定決定是否重啟
-	            const autoRunEnabled = localStorage.getItem(FARM_AUTO_RUN_KEY) !== '0';
-	            const farmUiOpen = localStorage.getItem('lh5_farm_ui_open') !== '0';
-	            if ((s.autoFarm || farmUiOpen) && (autoFarmFeature.isRunning() || autoRunEnabled)) {
-	                autoFarmFeature.stop();
-	                autoFarmFeature.runWithConfig();
-	            } else if (autoFarmFeature.isRunning()) {
-	                // 開關關了但還在跑→停掉
-	                autoFarmFeature.stop();
-	            }
-
-	            // 🎰 抽抽樂按鈕注入 + 自動抽開關同步
-	            injectGachaButtons();
-	            const s3 = loadSettings();
-	            if (s3.gachaAuto && !_gachaTimer) gachaAutoStart();
-	            if (!s3.gachaAuto && _gachaTimer) gachaAutoStop();
+            // autoFarm：根據自動執行設定決定是否重啟
+            const autoRunEnabled = localStorage.getItem(FARM_AUTO_RUN_KEY) !== '0';
+            const farmUiOpen = localStorage.getItem('lh5_farm_ui_open') !== '0';
+            if ((s.autoFarm || farmUiOpen) && (autoFarmFeature.isRunning() || autoRunEnabled)) {
+                autoFarmFeature.stop();
+                autoFarmFeature.runWithConfig();
+            } else if (autoFarmFeature.isRunning()) {
+                // 開關關了但還在跑→停掉
+                autoFarmFeature.stop();
+            }
+            // 🎰 抽抽樂 switch 注入
+            injectGachaSwitch();
+            injectGachaButtons();
 
         }
 
