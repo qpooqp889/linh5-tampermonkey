@@ -469,9 +469,9 @@
                     wrapper.appendChild(runBtn);
                     row.parentNode.insertBefore(wrapper, row.nextSibling);
                     break;
-                break;
             }
-        }('#lh5-modal-body .lh5-toggle input[type="checkbox"]').forEach(cb => {
+        }
+        document.querySelectorAll('#lh5-modal-body .lh5-toggle input[type="checkbox"]').forEach(cb => {
             cb.addEventListener('change', () => {
                 const k = cb.dataset.key, s2 = loadSettings(); s2[k] = cb.checked; saveSettings(s2);
                 renderSettings();
