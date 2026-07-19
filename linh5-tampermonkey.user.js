@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.52
+// @version      2.53
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1628,12 +1628,13 @@
                 if (typeof lastState === 'undefined' || !lastState) return;
                 const ls = lastState;
                 const summary = [];
-                if (ls.hp !== undefined && ls.maxHp !== undefined) summary.push('HP:' + ls.hp + '/' + ls.maxHp);
-                if (ls.mp !== undefined && ls.maxMp !== undefined) summary.push('MP:' + ls.mp + '/' + ls.maxMp);
+                const c = ls.char || {};
+                if (c.hp !== undefined && c.maxHp !== undefined) summary.push('HP:' + c.hp + '/' + c.maxHp);
+                if (c.mp !== undefined && c.maxMp !== undefined) summary.push('MP:' + c.mp + '/' + c.maxMp);
                 if (ls.monsters && Array.isArray(ls.monsters)) summary.push('怪:' + ls.monsters.length + '隻');
                 if (ls.players && Array.isArray(ls.players)) summary.push('玩家:' + ls.players.length + '人');
-                if (ls.gold !== undefined) summary.push('金幣:' + ls.gold);
-                if (ls.xp !== undefined) summary.push('經驗:' + ls.xp);
+                if (c.gold !== undefined) summary.push('金幣:' + c.gold);
+                if (c.exp !== undefined) summary.push('經驗:' + c.exp);
                 if (ls.party && Array.isArray(ls.party)) summary.push('組隊:' + ls.party.length + '人');
                 console.log('[LH5] 📊 lastState:', summary.join(' | '), summary.length ? '' : '(無遊戲狀態)');
 
