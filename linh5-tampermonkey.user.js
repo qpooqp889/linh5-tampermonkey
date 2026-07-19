@@ -1790,7 +1790,13 @@
                     btn.style.opacity = '0.4';
                 }
             });
-            expTxt.parentNode.appendChild(btn);
+            // 掛在「法師 · 等級 51」那行右邊
+            const clsRow = document.querySelector('#t-cls')?.parentNode;
+            if (clsRow) {
+                clsRow.after(btn);
+            } else {
+                expTxt.parentNode.appendChild(btn);
+            }
         }
     }, 400);
 
