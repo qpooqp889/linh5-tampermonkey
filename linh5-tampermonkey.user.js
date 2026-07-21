@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.84
+// @version      2.85
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -297,13 +297,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.84 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.85 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.84 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.85 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -1203,7 +1203,10 @@
 
         function mountIPPanel() {
             const loginBtn = document.getElementById('btn-login');
-            if (!loginBtn || !loginBtn.parentNode) return;
+            if (!loginBtn || !loginBtn.parentNode) {
+                console.log('[LinH5] mountIPPanel: 找不到 loginBtn 或 parentNode');
+                return;
+            }
             if (loginBtn.parentNode.querySelector('#lh5-ip-panel')) return;
             const panel = document.createElement('div');
             panel.id = 'lh5-ip-panel';
@@ -1217,6 +1220,7 @@
                 </div>
             `;
             loginBtn.parentNode.insertBefore(panel, loginBtn.nextSibling);
+            console.log('[LinH5] IP面板已掛載');
             // 面板首次出現時立即重新偵測一次 IP（確保現在IP最新）
             fetchExternalIP().then(ip => {
                 if (ip) { _externalIP = ip; updateIPAllowState(); updateIPPanel(); updateThemeBtn(); }
@@ -1850,6 +1854,7 @@
             // 登入頁倒數
             const loginBtn = document.getElementById('btn-login');
             if (loginBtn && !loginBtn.classList.contains('hidden') && loginBtn.offsetParent !== null) {
+                console.log('[LinH5] 登入頁 visible = true，hidden=', loginBtn.classList.contains('hidden'), 'offsetParent=', loginBtn.offsetParent);
                 let cd = loginBtn.parentNode.querySelector('.lh5-login-cd');
                 if (!cd) { cd = document.createElement('span'); cd.className = 'lh5-login-cd'; cd.style.cssText = 'color:#ff6b6b;font-size:13px;margin-left:8px;font-weight:bold'; loginBtn.parentNode.insertBefore(cd, loginBtn.nextSibling); }
                 // 黑名單 → 不自動登入，停止倒數顯示
@@ -1868,6 +1873,7 @@
             const lb2 = document.getElementById('btn-login');
             if (lb2 && !lb2.classList.contains('hidden') && lb2.offsetParent !== null) {
                 _loginContainer = lb2.parentNode; // 記住登入容器
+                console.log('[LinH5] 登入頁偵測到，呼叫 mountIPPanel');
                 autoFarmFeature.mountIPPanel();
                 autoFarmFeature.updateIPPanel();
                 // 黑名單 → 直接刪除登入按鈕
