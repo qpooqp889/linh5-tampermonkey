@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.80
+// @version      2.81
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -297,13 +297,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.80 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.81 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.80 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.81 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -1195,7 +1195,7 @@
         function updateThemeBtn() {
             const btn = document.getElementById('theme-btn');
             if (!btn) return;
-            const short = _externalIP ? _externalIP.replace(/\.\d+$/, '.*') : '??';
+            const short = _externalIP || '??';
             if (_externalIP && isIPBlacklisted(_externalIP)) {
                 btn.textContent = '配置 · IP黑名單!';
                 btn.style.color = '#e04040';
@@ -2307,26 +2307,27 @@
         const gb = tb.querySelector('.gold-box');
         if (gb) {
             if (!gb.parentNode.querySelector('#lh5-settings-btn')) gb.after(gearBtn);
-            // 掛載 theme-btn（配置 + 現在IP + 倒數）
-            if (!gb.parentNode.querySelector('#theme-btn')) {
-                const themeBtn = document.createElement('button');
-                themeBtn.id = 'theme-btn';
-                themeBtn.textContent = '配置';
-                themeBtn.style.cssText = 'margin-left:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#c8a96e;font-size:12px;cursor:pointer;font-family:inherit;';
-                themeBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
-                gb.after(themeBtn);
-            }
+            const themeBtn = document.createElement('button');
+            themeBtn.id = 'theme-btn';
+            themeBtn.textContent = '配置';
+            themeBtn.style.cssText = 'margin-left:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#c8a96e;font-size:12px;cursor:pointer;font-family:inherit;';
+            themeBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
+            // 防重：已存在就直接更新文字，不重複建立
+            const existingThemeBtn = document.getElementById('theme-btn');
+            if (existingThemeBtn) { themeBtn = existingThemeBtn; }
+            else { gb.after(themeBtn); }
         }
         else {
             if (!tb.querySelector('#lh5-settings-btn')) tb.appendChild(gearBtn);
-            if (!tb.querySelector('#theme-btn')) {
-                const themeBtn = document.createElement('button');
-                themeBtn.id = 'theme-btn';
-                themeBtn.textContent = '配置';
-                themeBtn.style.cssText = 'margin-left:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#c8a96e;font-size:12px;cursor:pointer;font-family:inherit;';
-                themeBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
-                tb.appendChild(themeBtn);
-            }
+            const themeBtn = document.createElement('button');
+            themeBtn.id = 'theme-btn';
+            themeBtn.textContent = '配置';
+            themeBtn.style.cssText = 'margin-left:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#c8a96e;font-size:12px;cursor:pointer;font-family:inherit;';
+            themeBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
+            // 防重：已存在就直接更新文字，不重複建立
+            const existingThemeBtn = document.getElementById('theme-btn');
+            if (existingThemeBtn) { themeBtn = existingThemeBtn; }
+            else { tb.appendChild(themeBtn); }
         }
     }
 
