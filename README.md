@@ -9,7 +9,7 @@
 2. 點擊下方安裝連結
 
 ### 安裝連結
-> [**🔗 安裝 LinH5 工具箱 v2.74**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
+> [**🔗 安裝 LinH5 工具箱 v2.75**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
 
 或手動新增腳本，將 [linh5-tampermonkey.user.js](./linh5-tampermonkey.user.js) 內容貼入。
 
@@ -72,6 +72,7 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 
 | 版本 | 說明 |
 |------|------|
+| v2.75 | 🌐 IP 黑名單防護：① 隱藏預設黑名單 203.203.81.145 / 211.72.117.241 不自動登入；② 登入頁面板顯示現在IP與黑名單狀態；③ 可手動「加入/移除黑名單」；④ 黑名單IP自動停用自動登入，其餘正常登入 |
 | v2.74 | 🌐 IP 偵測防護改版：① 登入按鈕下方顯示「現在IP / 上次IP」面板；② 每 20 秒更新對外 IP；③ 兩者不一致則自動停用自動登入；④ 提供「刷新」與「同步上次IP」按鈕；⑤ 一致才觸發自動登入 |
 | v2.73 | 🌐 新增 IP 偵測防護：① 腳本啟動時偵測對外 IP；② 每次掛機開始記錄基準 IP；③ 每 10 秒偵測一次，IP 變更則自動停止「自動登入」功能；④ 頂部「配置」按鈕顯示 IP 與 20 秒倒數 |
 | v2.72 | 🤖 掛機腳本增強：① 回大廳方式新增「隨機村莊」選項（9 選 1）；② 新增歷史清單按鈕 + Modal，記錄每次回大廳的時間/地點/等待秒數 |
