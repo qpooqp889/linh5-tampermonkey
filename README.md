@@ -9,7 +9,7 @@
 2. 點擊下方安裝連結
 
 ### 安裝連結
-> [**🔗 安裝 LinH5 工具箱 v2.86**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
+> [**🔗 安裝 LinH5 工具箱 v2.87**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
 
 或手動新增腳本，將 [linh5-tampermonkey.user.js](./linh5-tampermonkey.user.js) 內容貼入。
 
@@ -72,6 +72,7 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 
 | 版本 | 說明 |
 |------|------|
+| v2.87 | 📦 選角改直接送 `socket.emit('selectChar', slot)` 封包，取代 DOM 點擊 |
 | v2.86 | 🔢 大延遲時 UI 顯示即時倒數（⏳ XmXs）+ 控制台每分鐘報剩餘時間 |
 | v2.85 | 🔧 加 console.log 診斷 IP 面板問題，協助找出為何面板不顯示 |
 | v2.84 | 🐛 修復 `Assignment to constant variable`（mountGear 兩處 `const themeBtn` → `let`） |

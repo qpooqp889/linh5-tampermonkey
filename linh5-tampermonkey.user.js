@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.86
+// @version      2.87
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -297,13 +297,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.86 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.87 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.86 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.87 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -1955,17 +1955,9 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             const h2 = document.querySelector('h2');
             const h2txt2 = h2 ? h2.textContent.trim() : '';
             if (h2 && h2txt2.startsWith('選 擇 角 色')) {
-                const slots = document.getElementById('slots');
-                if (slots) {
-                    const charSlots = slots.querySelectorAll(':scope > .char-slot');
-                    const slotIdx = parseInt(localStorage.getItem('lh5_farm_slot'), 10) || 0;
-                    if (charSlots.length > slotIdx) {
-                        const target = charSlots[slotIdx];
-                        if (target && !target.querySelector('.empty')) {
-                            _clickEl(target);
-                        }
-                    }
-                }
+                const slotIdx = parseInt(localStorage.getItem('lh5_farm_slot'), 10) || 0;
+                _emitSocket('selectChar', slotIdx);
+                console.log(`[LinH5] 送出 selectChar slot=${slotIdx}`);
             }
         }, 60000);
     }
