@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.73
+// @version      2.74
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -297,13 +297,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.73 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.74 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.73 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.74 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -1108,12 +1108,13 @@
         let _lastLobbyRecord = null;    // 最後一次回大廳記錄（暫存）
         // IP 偵測相關
         let _externalIP = '';            // 當前對外 IP
-        let _baselineIP = '';           // 掛機開始時記錄的基準 IP
-        let _ipTimer = null;            // 每 10 秒偵測 IP 的定時器
+        let _lastIP = '';               // 上次/信任 IP（localStorage 持久化）
+        let _ipTimer = null;            // 每 20 秒偵測 IP 的定時器
         let _themeTimer = null;         // 每 1 秒更新按鈕倒數
         let _ipCountdown = 20;          // 按鈕倒數秒數（20 秒週期）
         let _ipCheckStarted = false;    // IP 偵測是否已啟動
-        let _ipChanged = false;         // IP 是否變更過
+        let _ipMatch = true;            // 現在IP 與 上次IP 是否一致
+        const FARM_LAST_IP_KEY = 'lh5_last_ip';
 
         function updateLobbyCountDisplay() {
             const el = document.getElementById('lh5-lobby-count-display');
@@ -1149,12 +1150,34 @@
             }
         }
 
+        function loadLastIP() {
+            _lastIP = localStorage.getItem(FARM_LAST_IP_KEY) || '';
+        }
+
+        function saveLastIP() {
+            localStorage.setItem(FARM_LAST_IP_KEY, _lastIP);
+        }
+
+        function checkIPMatch() {
+            _ipMatch = !!(_externalIP && _lastIP && _externalIP === _lastIP);
+            if (!_ipMatch) {
+                // IP 不一致 → 停用自動登入（斷線重連巡邏）
+                if (_reconnectTimer) { clearInterval(_reconnectTimer); _reconnectTimer = null; }
+                console.log(`[LinH5] ⚠ IP 不一致（現在 ${_externalIP} / 上次 ${_lastIP}），自動登入停用`);
+            } else if (_enabled && !_reconnectTimer) {
+                // IP 恢復一致且正在掛機 → 重新啟動自動登入
+                _reconnectTimer = setInterval(reconnectCheck, _reconnectSec * 1000);
+                console.log(`[LinH5] ✅ IP 一致，自動登入已恢復`);
+            }
+            return _ipMatch;
+        }
+
         function updateThemeBtn() {
             const btn = document.getElementById('theme-btn');
             if (!btn) return;
             const short = _externalIP ? _externalIP.replace(/\.\d+$/, '.*') : '??';
-            if (_ipChanged) {
-                btn.textContent = `配置 · IP變更!`;
+            if (!_ipMatch) {
+                btn.textContent = `配置 · IP不一致!`;
                 btn.style.color = '#e04040';
             } else {
                 btn.textContent = `配置 · ${short} · ${_ipCountdown}s`;
@@ -1162,29 +1185,69 @@
             }
         }
 
+        function mountIPPanel() {
+            const loginBtn = document.getElementById('btn-login');
+            if (!loginBtn || !loginBtn.parentNode) return;
+            if (loginBtn.parentNode.querySelector('#lh5-ip-panel')) return;
+            const panel = document.createElement('div');
+            panel.id = 'lh5-ip-panel';
+            panel.style.cssText = 'margin-top:8px;padding:8px 10px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.12);border-radius:6px;font-size:12px;color:#ccc;display:flex;flex-direction:column;gap:4px;max-width:260px';
+            panel.innerHTML = `
+                <div>現在IP: <span id="lh5-ip-now" style="color:#4fc3f7;font-weight:bold">--</span></div>
+                <div>上次IP: <span id="lh5-ip-last" style="color:#c8a96e;font-weight:bold">--</span></div>
+                <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
+                    <button id="lh5-ip-refresh" style="padding:3px 8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#e0d5c1;font-size:11px;cursor:pointer">刷新</button>
+                    <button id="lh5-ip-sync" style="padding:3px 8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#e0d5c1;font-size:11px;cursor:pointer">同步上次IP</button>
+                    <span id="lh5-ip-status" style="font-size:11px;margin-left:auto"></span>
+                </div>
+            `;
+            loginBtn.parentNode.insertBefore(panel, loginBtn.nextSibling);
+            panel.querySelector('#lh5-ip-refresh').addEventListener('click', async () => {
+                _externalIP = await fetchExternalIP();
+                checkIPMatch();
+                updateIPPanel();
+                updateThemeBtn();
+            });
+            panel.querySelector('#lh5-ip-sync').addEventListener('click', () => {
+                _lastIP = _externalIP;
+                saveLastIP();
+                checkIPMatch();
+                updateIPPanel();
+                updateThemeBtn();
+                console.log(`[LinH5] 上次IP 已同步為 ${_lastIP}`);
+            });
+        }
+
+        function updateIPPanel() {
+            const now = document.getElementById('lh5-ip-now');
+            const last = document.getElementById('lh5-ip-last');
+            const status = document.getElementById('lh5-ip-status');
+            if (now) now.textContent = _externalIP || '??';
+            if (last) last.textContent = _lastIP || '??';
+            if (status) {
+                if (_ipMatch) { status.textContent = '✅ 一致'; status.style.color = '#22c55e'; }
+                else { status.textContent = '⚠ 不一致'; status.style.color = '#e04040'; }
+            }
+        }
+
         async function startIPCheck() {
             if (_ipCheckStarted) return;
             _ipCheckStarted = true;
-            // 首次偵測 IP
+            loadLastIP();
             _externalIP = await fetchExternalIP();
-            console.log(`[LinH5] 對外 IP: ${_externalIP}`);
+            if (!_lastIP) { _lastIP = _externalIP; saveLastIP(); } // 首次：以當前 IP 為信任 IP
+            checkIPMatch();
+            mountIPPanel();
+            updateIPPanel();
             updateThemeBtn();
-            // 每 10 秒偵測一次 IP
+            console.log(`[LinH5] 對外 IP: ${_externalIP}（上次 ${_lastIP}）`);
+            // 每 20 秒偵測一次 IP
             _ipTimer = setInterval(async () => {
-                const ip = await fetchExternalIP();
-                if (!ip) return;
-                _externalIP = ip;
-                // IP 變更檢查
-                if (_baselineIP && ip !== _baselineIP) {
-                    if (!_ipChanged) {
-                        _ipChanged = true;
-                        console.log(`[LinH5] ⚠ IP 變更 ${_baselineIP} → ${ip}，停止自動登入`);
-                        // 停止自動登入（斷線重連巡邏）
-                        if (_reconnectTimer) { clearInterval(_reconnectTimer); _reconnectTimer = null; }
-                        updateThemeBtn();
-                    }
-                }
-            }, 10000);
+                _externalIP = await fetchExternalIP();
+                checkIPMatch();
+                updateIPPanel();
+                updateThemeBtn();
+            }, 20000);
             // 每 1 秒更新按鈕倒數（20 秒週期顯示）
             _themeTimer = setInterval(() => {
                 _ipCountdown--;
@@ -1481,17 +1544,21 @@
             _gotoDelayTotalMs = 0; // 重置延遲總毫秒數
             // _lobbyCount 不重置，跨 session 持續累計
             updateLobbyCountDisplay(); // 啟動時更新 UI
-            // IP 偵測：記錄基準 IP 並啟動偵測
+            // IP 偵測：啟動偵測並確認 IP 是否一致
             if (!_ipCheckStarted) startIPCheck();
-            _baselineIP = _externalIP; // 掛機開始時記錄當前 IP 為基準
-            _ipChanged = false; // 重置變更標記
+            checkIPMatch();
+            updateIPPanel();
             updateThemeBtn();
-            console.log(`[LinH5 掛機] 啟動，目標地圖: ${getTargetZoneName()} · 基準IP: ${_baselineIP}`);
+            console.log(`[LinH5 掛機] 啟動，目標地圖: ${getTargetZoneName()} · IP${_ipMatch ? '一致' : '不一致(自動登入停用)'}`);
             if (timer) { clearInterval(timer); timer = null; }
             timer = setInterval(tick, 2000);
-            // 斷線重連巡邏
+            // 斷線重連巡邏（IP 不一致時不啟動）
             if (_reconnectTimer) { clearInterval(_reconnectTimer); _reconnectTimer = null; }
-            _reconnectTimer = setInterval(reconnectCheck, _reconnectSec * 1000);
+            if (_ipMatch) {
+                _reconnectTimer = setInterval(reconnectCheck, _reconnectSec * 1000);
+            } else {
+                console.log(`[LinH5] IP 不一致，自動登入（斷線重連）已停用`);
+            }
             // 齒輪動畫
             const gb = document.getElementById('lh5-settings-btn');
             if (gb) gb.classList.add('lh5-running');
@@ -1519,7 +1586,7 @@
 
         function isRunning() { return _enabled; }
 
-        return { tryStart, disable, runWithConfig, stop, isRunning, getLobbyHistory, startIPCheck };
+        return { tryStart, disable, runWithConfig, stop, isRunning, getLobbyHistory, startIPCheck, mountIPPanel, updateIPPanel, isIPMatch: () => _ipMatch };
     })();
 
     // ============================================================
@@ -1756,6 +1823,15 @@
                 const old = document.querySelector('.lh5-login-cd');
                 if (old) old.remove();
             }
+            // IP 面板掛載（登入頁顯示）
+            const lb2 = document.getElementById('btn-login');
+            if (lb2 && !lb2.classList.contains('hidden') && lb2.offsetParent !== null) {
+                autoFarmFeature.mountIPPanel();
+                autoFarmFeature.updateIPPanel();
+            } else {
+                const ipPanel = document.getElementById('lh5-ip-panel');
+                if (ipPanel) ipPanel.remove();
+            }
             // 選角頁倒數
             const h2 = document.querySelector('h2');
             const h2txt = h2 ? h2.textContent.trim() : '';
@@ -1780,6 +1856,12 @@
             // 2. 登入按鈕
             const loginBtn = document.getElementById('btn-login');
             if (loginBtn && !loginBtn.classList.contains('hidden') && loginBtn.offsetParent !== null) {
+                if (!autoFarmFeature.isIPMatch()) {
+                    // IP 不一致 → 不自動登入
+                    const cd = loginBtn.parentNode.querySelector('.lh5-login-cd');
+                    if (cd) cd.textContent = '（IP不一致，已停用自動登入）';
+                    return;
+                }
                 _clickEl(loginBtn);
             }
             // 3. 選擇角色畫面
