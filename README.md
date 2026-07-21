@@ -9,7 +9,7 @@
 2. 點擊下方安裝連結
 
 ### 安裝連結
-> [**🔗 安裝 LinH5 工具箱 v2.85**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
+> [**🔗 安裝 LinH5 工具箱 v2.86**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
 
 或手動新增腳本，將 [linh5-tampermonkey.user.js](./linh5-tampermonkey.user.js) 內容貼入。
 
@@ -72,6 +72,7 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 
 | 版本 | 說明 |
 |------|------|
+| v2.86 | 🔢 大延遲時 UI 顯示即時倒數（⏳ XmXs）+ 控制台每分鐘報剩餘時間 |
 | v2.85 | 🔧 加 console.log 診斷 IP 面板問題，協助找出為何面板不顯示 |
 | v2.84 | 🐛 修復 `Assignment to constant variable`（mountGear 兩處 `const themeBtn` → `let`） |
 | v2.83 | 🐛 修復 `updateThemeBtn is not defined` 錯誤：將函數從 `mountIPPanel` 內部移到與其同層，正確定義在 IIFE 作用域 |

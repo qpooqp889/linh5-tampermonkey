@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.85
+// @version      2.86
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -297,13 +297,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.85 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.86 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.85 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.86 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -466,6 +466,7 @@
                                         <span>🔄 回大廳次數保護</span>
                                         <span id="lh5-lobby-count-display" style="color:#ff4444;font-weight:bold">0</span>
                                         <button id="lh5-lobby-history-btn" style="margin-left:4px;padding:2px 8px;background:#2a2a3e;border:1px solid #444;border-radius:4px;color:#aaa;font-size:11px;cursor:pointer">📋 歷史</button>
+                                        <span id="lh5-delay-cd" style="margin-left:8px;color:#ff6b6b;font-size:11px"></span>
                                     </div>
                                     <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
                                         <span style="font-size:12px;color:#888">回大廳 &gt;</span>
@@ -1105,6 +1106,7 @@
         let _gotoDelayStart = 0;         // 回地圖延遲開始時間戳（ms），0=未在等待
         let _gotoDelayTotalMs = 0;       // 計算好的延遲總毫秒數
         let _gotoDelayWaitSeconds = 0;   // 計算好的延遲總秒數（用於歷史記錄）
+let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重複 log）
         let _lastLobbyRecord = null;    // 最後一次回大廳記錄（暫存）
         // IP 偵測 / 黑名單相關
         const DEFAULT_BLACKLIST = ['203.203.81.145', '211.72.117.241']; // 隱藏預設黑名單
@@ -1498,18 +1500,48 @@
                         
                         if (totalWaitMs > 0) {
                             _gotoDelayStart = now;
-                            console.log(`[LinH5 掛機] 回地圖延遲 ${Math.round(totalWaitMs/1000)} 秒`);
+                            _lastDelayLogMin = 0;
+                            const cdEl = document.getElementById('lh5-delay-cd');
+                            const totalSec = Math.round(totalWaitMs/1000);
+                            if (cdEl) {
+                                const min = Math.floor(totalSec / 60);
+                                const sec = totalSec % 60;
+                                cdEl.textContent = totalSec >= 60 ? `⏳ ${min}m${sec.toString().padStart(2,'0')}s` : `⏳ ${totalSec}s`;
+                            }
+                            console.log(`[LinH5 掛機] 回地圖延遲 ${totalSec} 秒`);
                             return; // 等待中，本次 tick 不行動
                         }
                     }
 
-                    // ② 還在等待中：檢查是否期滿
+                    // ② 還在等待中：檢查是否期滿，同時更新倒數
                     if (_gotoDelayStart > 0) {
-                        if (now - _gotoDelayStart < _gotoDelayTotalMs) {
+                        const elapsed = now - _gotoDelayStart;
+                        const remainingMs = _gotoDelayTotalMs - elapsed;
+                        const remainingSec = Math.ceil(remainingMs / 1000);
+                        
+                        // UI 倒數
+                        const cdEl = document.getElementById('lh5-delay-cd');
+                        if (cdEl) {
+                            const min = Math.floor(remainingSec / 60);
+                            const sec = remainingSec % 60;
+                            cdEl.textContent = remainingSec >= 60 ? `⏳ ${min}m${sec.toString().padStart(2,'0')}s` : `⏳ ${remainingSec}s`;
+                        }
+                        
+                        // 控制台每分鐘報一次剩餘時間
+                        const remainingMin = Math.ceil(remainingSec / 60);
+                        if (remainingMin !== _lastDelayLogMin && remainingMin > 0) {
+                            _lastDelayLogMin = remainingMin;
+                            console.log(`[LinH5 掛機] 回地圖剩餘 ${remainingMin} 分鐘（${remainingSec} 秒）`);
+                        }
+                        
+                        if (elapsed < _gotoDelayTotalMs) {
                             return; // 仍在等待中
                         }
                         // 期滿了，重置並繼續
                         _gotoDelayStart = 0;
+                        _lastDelayLogMin = 0;
+                        const cdEl2 = document.getElementById('lh5-delay-cd');
+                        if (cdEl2) cdEl2.textContent = '';
                     }
 
                     // ③ 真正執行：出發
