@@ -9,7 +9,7 @@
 2. 點擊下方安裝連結
 
 ### 安裝連結
-> [**🔗 安裝 LinH5 工具箱 v2.81**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
+> [**🔗 安裝 LinH5 工具箱 v2.82**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
 
 或手動新增腳本，將 [linh5-tampermonkey.user.js](./linh5-tampermonkey.user.js) 內容貼入。
 
@@ -72,6 +72,7 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 
 | 版本 | 說明 |
 |------|------|
+| v2.82 | 🔢 回大廳次數顯示即時更新：從 `goLobby()` 開始時立即刷新（不用等下次 tick） |
 | v2.81 | 🌐 theme-btn 防重機制修復：防止遊戲重繪時建立多個按鈕；IP 顯示完整位址（移除 `*` 遮蔽） |
 | v2.80 | 🌐 恢復頂部「配置」按鈕（theme-btn）：顯示現在 IP 與 20 秒倒數（`配置 · 1.2.* · Ns`），每 20 秒自動更新對外 IP；黑名單時顯示紅字「IP黑名單!」 |
 | v2.79 | 🌐 移除頂部「配置」按鈕（theme-btn）：IP 資訊改由登入頁 IP 面板顯示；設定仍由齒輪按鈕開啟 |
