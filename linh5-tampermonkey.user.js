@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.78
+// @version      2.79
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -297,13 +297,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.78 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.79 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.78 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.79 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -1114,8 +1114,6 @@
         let _blacklist = [];            // 完整黑名單（預設 + 使用者）
         let _ipAllowed = true;          // 目前 IP 是否允許自動登入
         let _ipTimer = null;            // 每 20 秒偵測 IP 的定時器
-        let _themeTimer = null;         // 每 1 秒更新按鈕倒數
-        let _ipCountdown = 20;          // 按鈕倒數秒數（20 秒週期）
         let _ipCheckStarted = false;    // IP 偵測是否已啟動
 
         function updateLobbyCountDisplay() {
@@ -1187,18 +1185,6 @@
             return _ipAllowed;
         }
 
-        function updateThemeBtn() {
-            const btn = document.getElementById('theme-btn');
-            if (!btn) return;
-            const short = _externalIP ? _externalIP.replace(/\.\d+$/, '.*') : '??';
-            if (_externalIP && isIPBlacklisted(_externalIP)) {
-                btn.textContent = `配置 · IP黑名單!`;
-                btn.style.color = '#e04040';
-            } else {
-                btn.textContent = `配置 · ${short} · ${_ipCountdown}s`;
-                btn.style.color = '';
-            }
-        }
 
         function mountIPPanel() {
             const loginBtn = document.getElementById('btn-login');
@@ -1218,13 +1204,12 @@
             loginBtn.parentNode.insertBefore(panel, loginBtn.nextSibling);
             // 面板首次出現時立即重新偵測一次 IP（確保現在IP最新）
             fetchExternalIP().then(ip => {
-                if (ip) { _externalIP = ip; updateIPAllowState(); updateIPPanel(); updateThemeBtn(); }
+                if (ip) { _externalIP = ip; updateIPAllowState(); updateIPPanel(); }
             });
             panel.querySelector('#lh5-ip-refresh').addEventListener('click', async () => {
                 _externalIP = await fetchExternalIP();
                 updateIPAllowState();
                 updateIPPanel();
-                updateThemeBtn();
             });
             panel.querySelector('#lh5-ip-toggle').addEventListener('click', () => {
                 if (!_externalIP || DEFAULT_BLACKLIST.indexOf(_externalIP) >= 0) return; // 預設黑名單不可移除
@@ -1235,7 +1220,6 @@
                 rebuildBlacklist();
                 updateIPAllowState();
                 updateIPPanel();
-                updateThemeBtn();
                 console.log(`[LinH5] 黑名單更新: ${_userBlacklist.join(', ') || '(空)'}`);
             });
         }
@@ -1267,21 +1251,13 @@
             updateIPAllowState();
             mountIPPanel();
             updateIPPanel();
-            updateThemeBtn();
             console.log(`[LinH5] 對外 IP: ${_externalIP}（黑名單 ${_blacklist.length} 筆）`);
             // 每 20 秒偵測一次 IP
             _ipTimer = setInterval(async () => {
                 _externalIP = await fetchExternalIP();
                 updateIPAllowState();
                 updateIPPanel();
-                updateThemeBtn();
             }, 20000);
-            // 每 1 秒更新按鈕倒數（20 秒週期顯示）
-            _themeTimer = setInterval(() => {
-                _ipCountdown--;
-                if (_ipCountdown <= 0) _ipCountdown = 20;
-                updateThemeBtn();
-            }, 1000);
         }
 
         function loadConfig() {
@@ -1576,7 +1552,6 @@
             if (!_ipCheckStarted) startIPCheck();
             updateIPAllowState();
             updateIPPanel();
-            updateThemeBtn();
             console.log(`[LinH5 掛機] 啟動，目標地圖: ${getTargetZoneName()} · IP${_ipAllowed ? '允許' : '黑名單(自動登入停用)'}`);
             if (timer) { clearInterval(timer); timer = null; }
             timer = setInterval(tick, 2000);
@@ -2304,26 +2279,9 @@
         const gb = tb.querySelector('.gold-box');
         if (gb) {
             if (!gb.parentNode.querySelector('#lh5-settings-btn')) gb.after(gearBtn);
-            // 掛載 theme-btn（配置 + IP 倒數）
-            if (!gb.parentNode.querySelector('#theme-btn')) {
-                const themeBtn = document.createElement('button');
-                themeBtn.id = 'theme-btn';
-                themeBtn.textContent = '配置';
-                themeBtn.style.cssText = 'margin-left:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#c8a96e;font-size:12px;cursor:pointer;font-family:inherit;';
-                themeBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
-                gb.after(themeBtn);
-            }
         }
         else {
             if (!tb.querySelector('#lh5-settings-btn')) tb.appendChild(gearBtn);
-            if (!tb.querySelector('#theme-btn')) {
-                const themeBtn = document.createElement('button');
-                themeBtn.id = 'theme-btn';
-                themeBtn.textContent = '配置';
-                themeBtn.style.cssText = 'margin-left:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#c8a96e;font-size:12px;cursor:pointer;font-family:inherit;';
-                themeBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
-                tb.appendChild(themeBtn);
-            }
         }
     }
 
