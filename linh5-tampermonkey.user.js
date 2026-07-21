@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.75
+// @version      2.76
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -297,13 +297,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.75 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.76 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.75 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.76 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -1216,6 +1216,10 @@
                 </div>
             `;
             loginBtn.parentNode.insertBefore(panel, loginBtn.nextSibling);
+            // 面板首次出現時立即重新偵測一次 IP（確保現在IP最新）
+            fetchExternalIP().then(ip => {
+                if (ip) { _externalIP = ip; updateIPAllowState(); updateIPPanel(); updateThemeBtn(); }
+            });
             panel.querySelector('#lh5-ip-refresh').addEventListener('click', async () => {
                 _externalIP = await fetchExternalIP();
                 updateIPAllowState();
@@ -1852,9 +1856,24 @@
             if (lb2 && !lb2.classList.contains('hidden') && lb2.offsetParent !== null) {
                 autoFarmFeature.mountIPPanel();
                 autoFarmFeature.updateIPPanel();
+                // 黑名單 → 登入按鈕反灰（禁用自動登入視覺提示）
+                if (!autoFarmFeature.isIPAllowed()) {
+                    lb2.style.filter = 'grayscale(100%) brightness(0.7)';
+                    lb2.style.opacity = '0.5';
+                    lb2.style.cursor = 'not-allowed';
+                    lb2.title = 'IP 在黑名單，自動登入已停用';
+                } else {
+                    lb2.style.filter = '';
+                    lb2.style.opacity = '';
+                    lb2.style.cursor = '';
+                    lb2.title = '';
+                }
             } else {
                 const ipPanel = document.getElementById('lh5-ip-panel');
                 if (ipPanel) ipPanel.remove();
+                // 登入頁離開時還原按鈕樣式
+                const lb3 = document.getElementById('btn-login');
+                if (lb3) { lb3.style.filter = ''; lb3.style.opacity = ''; lb3.style.cursor = ''; lb3.title = ''; }
             }
             // 選角頁倒數
             const h2 = document.querySelector('h2');
