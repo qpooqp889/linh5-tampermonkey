@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.70
+// @version      2.72
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -33,10 +33,30 @@
     const FARM_HP_ENABLED_KEY = 'lh5_farm_hp_enabled';
     const FARM_HP_LOW_KEY = 'lh5_farm_hp_low';
     const FARM_HP_HIGH_KEY = 'lh5_farm_hp_high';
-    const FARM_LOBBY_MODE_KEY = 'lh5_farm_lobby_mode';
+    const FARM_LOBBY_MODE_KEY = 'lh5_farm_lobby_mode'; // 回大廳方式：toLobby / randomTown
     const FARM_LOBBY_WEAPON_KEY = 'lh5_farm_lobby_weapon';
     const FARM_ZONE_WEAPON_KEY = 'lh5_farm_zone_weapon';
     const FARM_AUTO_RUN_KEY = 'lh5_farm_auto_run';
+    const FARM_GOTO_DELAY_MIN_KEY = 'lh5_farm_goto_delay_min';   // 回地圖隨機延遲下限（秒）
+    const FARM_GOTO_DELAY_MAX_KEY = 'lh5_farm_goto_delay_max';   // 回地圖隨機延遲上限（秒），0=關閉
+    const FARM_LOBBY_COUNT_LIMIT_KEY = 'lh5_farm_lobby_count_limit'; // 回大廳次數上限，達到此值觸發長延遲
+    const FARM_LOBBY_COUNT_DELAY_MIN_KEY = 'lh5_farm_lobby_count_delay_min'; // 超出次數後隨機延遲下限（分鐘）
+    const FARM_LOBBY_COUNT_DELAY_MAX_KEY = 'lh5_farm_lobby_count_delay_max'; // 超出次數後隨機延遲上限（分鐘）
+    const FARM_LOBBY_COUNT_KEY = 'lh5_farm_lobby_count'; // 累計回大廳次數（持久化）
+    const FARM_LOBBY_HISTORY_KEY = 'lh5_farm_lobby_history'; // 回大廳歷史清單（JSON array）
+
+    // 隨機村莊清單（安全區）
+    const RANDOM_TOWNS = [
+        'town_silver_knight', // 銀騎士村
+        'town_elf',           // 妖精森林
+        'town_talking',       // 說話之島
+        'town_gludio',        // 燃柳村
+        'town_giran',         // 奇岩
+        'town_heine',         // 海音
+        'town_oren',          // 歐瑞村莊
+        'town_ivory_tower',   // 象牙塔
+        'town_witon'          // 威頓村
+    ];
 
     const FARM_ZONES = [
         // ── 野外 ──
@@ -277,13 +297,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.70 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.71 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.70 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.71 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -375,7 +395,7 @@
             const autoRunEnabled = localStorage.getItem(FARM_AUTO_RUN_KEY) !== '0'; // 預設勾選
             const hpLowVal = localStorage.getItem(FARM_HP_LOW_KEY) || '30';
             const hpHighVal = localStorage.getItem(FARM_HP_HIGH_KEY) || '80';
-            const lobbyMode = 'toLobby'; // 固定回大廳
+            const lobbyMode = localStorage.getItem(FARM_LOBBY_MODE_KEY) || 'randomTown'; // 預設隨機村莊
             const rows = document.querySelectorAll('#lh5-modal-body .lh5-switch-row');
             for (const row of rows) {
                 // autoFarm 改用 .lh5-farm-toggle-row 比對
@@ -419,8 +439,8 @@
                             <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#ccc">
                                 <span>回大廳方式：</span>
                                 <select id="lh5-farm-lobby-mode" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
-                                    <option value="toLobby" selected>🏠 回大廳（socket.emit('toLobby')）</option>
-
+                                    <option value="toLobby">🏠 回大廳</option>
+                                    <option value="randomTown" ${lobbyMode === 'randomTown' ? 'selected' : ''}>🎲 隨機村莊（9選1）</option>
                                 </select>
                             </div>
                             <div style="margin-top:8px;padding:6px;background:#15152a;border-radius:6px;font-size:12px;color:#aaa">
@@ -434,6 +454,29 @@
                                     <option value="">-- 不換武 --</option>
                                     ${weapons.map(w => `<option value="${w.value}"${zoneWpn === w.value ? ' selected' : ''}>${w.label}</option>`).join('')}
                                 </select>
+                                <div style="margin-top:8px;padding-top:8px;border-top:1px solid #2a2a3e;display:flex;flex-direction:column;gap:4px">
+                                    <div style="font-size:12px;color:#aaa">⏱ 回地圖延遲（秒）</div>
+                                    <div style="display:flex;align-items:center;gap:4px">
+                                        <input id="lh5-farm-goto-delay-min" type="number" min="0" max="300" value="${localStorage.getItem(FARM_GOTO_DELAY_MIN_KEY) || '0'}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                                        <span style="font-size:12px;color:#888">~</span>
+                                        <input id="lh5-farm-goto-delay-max" type="number" min="0" max="300" value="${localStorage.getItem(FARM_GOTO_DELAY_MAX_KEY) || '2'}" style="width:50px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                                        <span style="font-size:12px;color:#888">秒隨機（0=關閉）</span>
+                                    </div>
+                                    <div style="font-size:12px;color:#aaa;margin-top:4px;display:flex;align-items:center;gap:6px">
+                                        <span>🔄 回大廳次數保護</span>
+                                        <span id="lh5-lobby-count-display" style="color:#ff4444;font-weight:bold">0</span>
+                                        <button id="lh5-lobby-history-btn" style="margin-left:4px;padding:2px 8px;background:#2a2a3e;border:1px solid #444;border-radius:4px;color:#aaa;font-size:11px;cursor:pointer">📋 歷史</button>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+                                        <span style="font-size:12px;color:#888">回大廳 &gt;</span>
+                                        <input id="lh5-farm-lobby-count-limit" type="number" min="1" max="99" value="${localStorage.getItem(FARM_LOBBY_COUNT_LIMIT_KEY) || '30'}" style="width:45px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                                        <span style="font-size:12px;color:#888">次，隨機等</span>
+                                        <input id="lh5-farm-lobby-count-delay-min" type="number" min="1" max="60" value="${localStorage.getItem(FARM_LOBBY_COUNT_DELAY_MIN_KEY) || '5'}" style="width:40px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                                        <span style="font-size:12px;color:#888">~</span>
+                                        <input id="lh5-farm-lobby-count-delay-max" type="number" min="1" max="60" value="${localStorage.getItem(FARM_LOBBY_COUNT_DELAY_MAX_KEY) || '8'}" style="width:40px;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none">
+                                        <span style="font-size:12px;color:#888">分鐘再回地圖</span>
+                                    </div>
+                                </div>
                             </div>
 	                            <div id="lh5-farm-status" style="font-size:11px;color:#666;margin-top:6px;">監控中 (MP < ${farmLowVal}% / HP < ${hpLowVal}% 回大廳, > ${farmHighVal}% / > ${hpHighVal}% 出發 ${farmZoneName})</div>
 	                            <div style="margin-top:8px;padding-top:8px;border-top:1px solid #2a2a3e">
@@ -530,12 +573,41 @@
             farmZone.addEventListener('change', saveFarm);
             farmZone.addEventListener('click', saveFarm);
             // 武器下拉立即存
+            document.getElementById('lh5-farm-lobby-mode')?.addEventListener('change', function(){
+                localStorage.setItem(FARM_LOBBY_MODE_KEY, this.value);
+            });
             document.getElementById('lh5-farm-lobby-weapon')?.addEventListener('change', function(){
                 localStorage.setItem(FARM_LOBBY_WEAPON_KEY, this.value);
             });
             document.getElementById('lh5-farm-zone-weapon')?.addEventListener('change', function(){
                 localStorage.setItem(FARM_ZONE_WEAPON_KEY, this.value);
             });
+            // 新增：回地圖延遲設定（秒）
+            document.getElementById('lh5-farm-goto-delay-min')?.addEventListener('input', function(){
+                const v = parseInt(this.value, 10);
+                if (!isNaN(v) && v >= 0 && v <= 300) localStorage.setItem(FARM_GOTO_DELAY_MIN_KEY, String(v));
+            });
+            document.getElementById('lh5-farm-goto-delay-max')?.addEventListener('input', function(){
+                const v = parseInt(this.value, 10);
+                if (!isNaN(v) && v >= 0 && v <= 300) localStorage.setItem(FARM_GOTO_DELAY_MAX_KEY, String(v));
+            });
+            // 新增：回大廳次數保護設定
+            document.getElementById('lh5-farm-lobby-count-limit')?.addEventListener('input', function(){
+                const v = parseInt(this.value, 10);
+                if (!isNaN(v) && v >= 1 && v <= 99) localStorage.setItem(FARM_LOBBY_COUNT_LIMIT_KEY, String(v));
+            });
+            document.getElementById('lh5-farm-lobby-count-delay-min')?.addEventListener('input', function(){
+                const v = parseInt(this.value, 10);
+                if (!isNaN(v) && v >= 1 && v <= 60) localStorage.setItem(FARM_LOBBY_COUNT_DELAY_MIN_KEY, String(v));
+            });
+            document.getElementById('lh5-farm-lobby-count-delay-max')?.addEventListener('input', function(){
+                const v = parseInt(this.value, 10);
+                if (!isNaN(v) && v >= 1 && v <= 60) localStorage.setItem(FARM_LOBBY_COUNT_DELAY_MAX_KEY, String(v));
+            });
+            
+            // 歷史清單按鈕
+            document.getElementById('lh5-lobby-history-btn')?.addEventListener('click', showLobbyHistoryModal);
+            
             // HP inputs
             const hpLowEl = document.getElementById('lh5-farm-hp-low');
             const hpHighEl = document.getElementById('lh5-farm-hp-high');
@@ -1021,7 +1093,39 @@
         let _hpEnabled = false;
         let _hpLow = 30;
         let _hpHigh = 80;
-        let _lobbyMode = 'selectChar';
+        let _lobbyMode = 'randomTown';
+
+        // 新增：回地圖延遲 + 回大廳次數保護
+        let _gotoDelayMin = 0;            // 回地圖隨機延遲下限（秒）
+        let _gotoDelayMax = 2;            // 回地圖隨機延遲上限（秒），0=關閉
+        let _lobbyCountLimit = 30;      // 回大廳次數上限
+        let _lobbyCountDelayMin = 5;    // 超出上限後隨機延遲下限（分鐘）
+        let _lobbyCountDelayMax = 8;    // 超出上限後隨機延遲上限（分鐘）
+        let _lobbyCount = 0;              // 累計回大廳次數
+        let _gotoDelayStart = 0;         // 回地圖延遲開始時間戳（ms），0=未在等待
+        let _gotoDelayTotalMs = 0;       // 計算好的延遲總毫秒數
+        let _gotoDelayWaitSeconds = 0;   // 計算好的延遲總秒數（用於歷史記錄）
+        let _lastLobbyRecord = null;    // 最後一次回大廳記錄（暫存）
+
+        function updateLobbyCountDisplay() {
+            const el = document.getElementById('lh5-lobby-count-display');
+            if (el) el.textContent = _lobbyCount;
+        }
+
+        function getLobbyHistory() {
+            try {
+                const data = localStorage.getItem(FARM_LOBBY_HISTORY_KEY);
+                return data ? JSON.parse(data) : [];
+            } catch (_) { return []; }
+        }
+
+        function addLobbyHistory(record) {
+            const history = getLobbyHistory();
+            history.unshift(record); // 新記錄在最前面
+            // 只保留最近 100 筆
+            if (history.length > 100) history.length = 100;
+            localStorage.setItem(FARM_LOBBY_HISTORY_KEY, JSON.stringify(history));
+        }
 
         function loadConfig() {
             try {
@@ -1032,12 +1136,32 @@
                 _hpLow = parseInt(localStorage.getItem(FARM_HP_LOW_KEY), 10) || 30;
                 _hpHigh = parseInt(localStorage.getItem(FARM_HP_HIGH_KEY), 10) || 80;
                 _targetZone = localStorage.getItem(FARM_ZONE_KEY) || 'zone_07';
-                _lobbyMode = localStorage.getItem(FARM_LOBBY_MODE_KEY) || 'selectChar';
+                _lobbyMode = localStorage.getItem(FARM_LOBBY_MODE_KEY) || 'randomTown';
                 _reconnectSlot = parseInt(localStorage.getItem(FARM_SLOT_KEY), 10) || 0;
                 _reconnectSec = parseInt(localStorage.getItem(FARM_RECONNECT_KEY), 10) || 300;
                 if (_reconnectSlot < 0 || _reconnectSlot > 2) _reconnectSlot = 0;
                 if (_reconnectSec < 10) _reconnectSec = 10;
                 if (_reconnectSec > 3600) _reconnectSec = 3600;
+                // 新增設定讀取（秒）
+                _gotoDelayMin = parseInt(localStorage.getItem(FARM_GOTO_DELAY_MIN_KEY), 10) || 0;
+                _gotoDelayMax = parseInt(localStorage.getItem(FARM_GOTO_DELAY_MAX_KEY), 10) || 2;
+                if (_gotoDelayMin < 0) _gotoDelayMin = 0;
+                if (_gotoDelayMin > 300) _gotoDelayMin = 300;
+                if (_gotoDelayMax < 0) _gotoDelayMax = 0;
+                if (_gotoDelayMax > 300) _gotoDelayMax = 300;
+                if (_gotoDelayMin > _gotoDelayMax) _gotoDelayMin = _gotoDelayMax;
+                _lobbyCountLimit = parseInt(localStorage.getItem(FARM_LOBBY_COUNT_LIMIT_KEY), 10) || 30;
+                if (_lobbyCountLimit < 1) _lobbyCountLimit = 1;
+                if (_lobbyCountLimit > 99) _lobbyCountLimit = 99;
+                _lobbyCountDelayMin = parseInt(localStorage.getItem(FARM_LOBBY_COUNT_DELAY_MIN_KEY), 10) || 5;
+                if (_lobbyCountDelayMin < 1) _lobbyCountDelayMin = 1;
+                if (_lobbyCountDelayMin > 60) _lobbyCountDelayMin = 60;
+                _lobbyCountDelayMax = parseInt(localStorage.getItem(FARM_LOBBY_COUNT_DELAY_MAX_KEY), 10) || 8;
+                if (_lobbyCountDelayMax < 1) _lobbyCountDelayMax = 1;
+                if (_lobbyCountDelayMax > 60) _lobbyCountDelayMax = 60;
+                if (_lobbyCountDelayMin > _lobbyCountDelayMax) _lobbyCountDelayMin = _lobbyCountDelayMax;
+                // 讀取累計回大廳次數
+                _lobbyCount = parseInt(localStorage.getItem(FARM_LOBBY_COUNT_KEY), 10) || 0;
             } catch (_) {}
             _mpLow = Math.max(1, Math.min(99, _mpLow));
             _mpHigh = Math.max(1, Math.min(99, _mpHigh));
@@ -1086,17 +1210,50 @@
         // 注意：selectChar 可直接在遊戲中發送，伺服器處理重生回銀騎士+滿血滿魔
         function goLobby() {
             const weaponId = localStorage.getItem(FARM_LOBBY_WEAPON_KEY);
-            if (weaponId) {
-                const idx = findWeaponById(weaponId);
-                if (idx >= 0) {
-                    _emitSocket('equip', idx);
-                    setTimeout(() => _emitSocket('toLobby'), 500);
+            const now = new Date();
+            const timestamp = now.toLocaleString('zh-TW', { hour12: false });
+            
+            let targetZone = '大廳';
+            
+            // 判斷回大廳模式
+            if (_lobbyMode === 'randomTown') {
+                // 隨機村莊
+                const randomZone = RANDOM_TOWNS[Math.floor(Math.random() * RANDOM_TOWNS.length)];
+                targetZone = randomZone;
+                console.log(`[LinH5 掛機] 隨機村莊: ${randomZone}`);
+                if (weaponId) {
+                    const idx = findWeaponById(weaponId);
+                    if (idx >= 0) {
+                        _emitSocket('equip', idx);
+                        setTimeout(() => _emitSocket('setZone', randomZone), 500);
+                    } else {
+                        _emitSocket('setZone', randomZone);
+                    }
+                } else {
+                    _emitSocket('setZone', randomZone);
+                }
+            } else {
+                // 預設回大廳
+                if (weaponId) {
+                    const idx = findWeaponById(weaponId);
+                    if (idx >= 0) {
+                        _emitSocket('equip', idx);
+                        setTimeout(() => _emitSocket('toLobby'), 500);
+                    } else {
+                        _emitSocket('toLobby');
+                    }
                 } else {
                     _emitSocket('toLobby');
                 }
-            } else {
-                _emitSocket('toLobby');
             }
+            
+            // 記錄回大廳歷史（等待時間為 0，將在出發時更新）
+            _lastLobbyRecord = {
+                timestamp,
+                targetZone,
+                waitSeconds: 0
+            };
+            console.log(`[LinH5 掛機] 已回大廳: ${targetZone}`);
         }
 
         // 傳送到目標地圖並自動攻擊（直接封包，不再靠 DOM 點擊流程）
@@ -1126,8 +1283,9 @@
             const hp = getHPPercent();
             const zoneName = getCurrentZoneName();
             const targetName = getTargetZoneName();
+            const now = Date.now();
 
-            // 判斷是否該回大廳（MP 或 HP 任一啟用且低於門檻）
+            // ── 判斷是否該回大廳（MP 或 HP 任一啟用且低於門檻）
             let shouldRest = false;
             if (_mpEnabled && mp < _mpLow) shouldRest = true;
             if (_hpEnabled && hp < _hpLow) shouldRest = true;
@@ -1135,23 +1293,82 @@
             if (shouldRest) {
                 if (!_isResting) {
                     _isResting = true;
+                    _lobbyCount++;                          // 累計回大廳次數
+                    localStorage.setItem(FARM_LOBBY_COUNT_KEY, String(_lobbyCount));
+                    updateLobbyCountDisplay();
                     goLobby();
                 }
                 return;
             }
 
-            // 判斷是否該出發：所有啟用的條件都高於門檻
+            // ── 判斷是否該出發：所有啟用的條件都高於門檻
             let canGo = true;
             if (_mpEnabled && mp <= _mpHigh) canGo = false;
             if (_hpEnabled && hp <= _hpHigh) canGo = false;
 
             if (canGo) {
-                if (_isResting || (targetName && zoneName !== targetName)) {
+                const needToGo = _isResting || (targetName && zoneName !== targetName);
+                console.log(`[LinH5 掛機] canGo=${canGo}, needToGo=${needToGo}, _isResting=${_isResting}, zone=${zoneName}, target=${targetName}`);
+                if (needToGo) {
+                    // ── 延遲回地圖邏輯 ──
+                    // ① 首次決定要去地圖：計算總等待時間
+                    if (_gotoDelayStart === 0) {
+                        let totalWaitMs = 0;
+                        let delaySecPart = 0;
+                        let extraMinPart = 0;
+                        
+                        if (_gotoDelayMax > 0) {
+                            delaySecPart = Math.floor(Math.random() * (_gotoDelayMax - _gotoDelayMin + 1)) + _gotoDelayMin; // min ~ max
+                            totalWaitMs = delaySecPart * 1000;
+                        }
+                        if (_lobbyCount > _lobbyCountLimit) {
+                            extraMinPart = Math.floor(Math.random() * (_lobbyCountDelayMax - _lobbyCountDelayMin + 1)) + _lobbyCountDelayMin; // min ~ max
+                            totalWaitMs += extraMinPart * 60 * 1000;
+                            console.log(`[LinH5 掛機] 回大廳 ${_lobbyCount} 次（上限 ${_lobbyCountLimit}），額外等待 ${extraMinPart} 分鐘`);
+                        }
+                        
+                        _gotoDelayTotalMs = totalWaitMs; // 保存計算結果
+                        _gotoDelayWaitSeconds = delaySecPart + (extraMinPart * 60); // 保存等待秒數
+                        
+                        if (totalWaitMs > 0) {
+                            _gotoDelayStart = now;
+                            console.log(`[LinH5 掛機] 回地圖延遲 ${Math.round(totalWaitMs/1000)} 秒`);
+                            return; // 等待中，本次 tick 不行動
+                        }
+                    }
+
+                    // ② 還在等待中：檢查是否期滿
+                    if (_gotoDelayStart > 0) {
+                        if (now - _gotoDelayStart < _gotoDelayTotalMs) {
+                            return; // 仍在等待中
+                        }
+                        // 期滿了，重置並繼續
+                        _gotoDelayStart = 0;
+                    }
+
+                    // ③ 真正執行：出發
                     _isResting = false;
+                    
+                    // 如果本次等待是長延遲（>30次觸發），歸零計數器
+                    if (_gotoDelayWaitSeconds >= 180) { // 3分鐘以上視為長延遲
+                        _lobbyCount = 0;
+                        localStorage.setItem(FARM_LOBBY_COUNT_KEY, '0');
+                        updateLobbyCountDisplay();
+                        console.log(`[LinH5 掛機] 長延遲完成，計數器歸零`);
+                    }
+                    
+                    // 記錄歷史（更新等待時間）
+                    if (_lastLobbyRecord) {
+                        _lastLobbyRecord.waitSeconds = _gotoDelayWaitSeconds || 0;
+                        addLobbyHistory(_lastLobbyRecord);
+                        _lastLobbyRecord = null;
+                    }
+                    
+                    console.log(`[LinH5 掛機] 延遲期滿，出發前往 ${targetName}`);
                     goToZone();
                 }
             }
-            // 在中間區間：不做任何事，維持現狀
+            // 在中間區間或已在掛機：不做任何事，維持現狀
         }
 
         // 斷線重連：先點登入按鈕（若存在）→延遲5秒→再選角色slot
@@ -1194,6 +1411,11 @@
             loadConfig();
             _enabled = true;
             _isResting = false;
+            _gotoDelayStart = 0; // 重置延遲計時器
+            _gotoDelayTotalMs = 0; // 重置延遲總毫秒數
+            // _lobbyCount 不重置，跨 session 持續累計
+            updateLobbyCountDisplay(); // 啟動時更新 UI
+            console.log(`[LinH5 掛機] 啟動，目標地圖: ${getTargetZoneName()}`);
             if (timer) { clearInterval(timer); timer = null; }
             timer = setInterval(tick, 2000);
             // 斷線重連巡邏
@@ -1214,6 +1436,7 @@
             if (timer) { clearInterval(timer); timer = null; }
             if (_reconnectTimer) { clearInterval(_reconnectTimer); _reconnectTimer = null; }
             _isResting = false;
+            _gotoDelayStart = 0; // 重置延遲計時器
             // 移除齒輪動畫
             const gb = document.getElementById('lh5-settings-btn');
             if (gb) gb.classList.remove('lh5-running');
@@ -1225,7 +1448,7 @@
 
         function isRunning() { return _enabled; }
 
-        return { tryStart, disable, runWithConfig, stop, isRunning };
+        return { tryStart, disable, runWithConfig, stop, isRunning, getLobbyHistory };
     })();
 
     // ============================================================
@@ -2074,5 +2297,103 @@
         }
 
     }, 400);
+
+    // ============================================================
+    //  📋 回大廳歷史清單 Modal
+    // ============================================================
+    function showLobbyHistoryModal() {
+        const history = autoFarmFeature.getLobbyHistory();
+        
+        // 移除舊 modal
+        const oldModal = document.getElementById('lh5-lobby-history-modal');
+        if (oldModal) oldModal.remove();
+        
+        // 建立 modal
+        const modal = document.createElement('div');
+        modal.id = 'lh5-lobby-history-modal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:99999;display:flex;align-items:center;justify-content:center;';
+        
+        const content = document.createElement('div');
+        content.style.cssText = 'background:#1a1a2e;border:1px solid #333;border-radius:12px;width:90%;max-width:600px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;';
+        
+        // 標題列
+        const header = document.createElement('div');
+        header.style.cssText = 'padding:12px 16px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center;';
+        header.innerHTML = `
+            <span style="color:#e0d5c1;font-size:14px;font-weight:bold">📋 回大廳歷史清單</span>
+            <button id="lh5-history-close" style="background:#3a3a4e;border:1px solid #555;border-radius:6px;padding:4px 12px;color:#aaa;font-size:12px;cursor:pointer">關閉</button>
+        `;
+        content.appendChild(header);
+        
+        // 內容區
+        const body = document.createElement('div');
+        body.style.cssText = 'padding:12px 16px;overflow-y:auto;flex:1;';
+        
+        if (history.length === 0) {
+            body.innerHTML = '<div style="color:#888;font-size:13px;text-align:center;padding:20px">尚無歷史記錄</div>';
+        } else {
+            const townNames = {
+                'town_silver_knight': '銀騎士村',
+                'town_elf': '妖精森林',
+                'town_talking': '說話之島',
+                'town_gludio': '燃柳村',
+                'town_giran': '奇岩',
+                'town_heine': '海音',
+                'town_oren': '歐瑞村莊',
+                'town_ivory_tower': '象牙塔',
+                'town_witon': '威頓村',
+                '大廳': '大廳'
+            };
+            
+            const table = document.createElement('table');
+            table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px;color:#ccc';
+            table.innerHTML = `
+                <thead>
+                    <tr style="background:#15152a">
+                        <th style="padding:8px;text-align:left;border-bottom:1px solid #333">日期時間</th>
+                        <th style="padding:8px;text-align:left;border-bottom:1px solid #333">傳送地點</th>
+                        <th style="padding:8px;text-align:right;border-bottom:1px solid #333">等待秒數</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${history.map(r => `
+                        <tr>
+                            <td style="padding:6px 8px;border-bottom:1px solid #2a2a3e">${r.timestamp}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #2a2a3e">${townNames[r.targetZone] || r.targetZone}</td>
+                            <td style="padding:6px 8px;border-bottom:1px solid #2a2a3e;text-align:right;color:${r.waitSeconds > 60 ? '#ff6b6b' : '#4ade80'}">${r.waitSeconds} 秒</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+            body.appendChild(table);
+            
+            // 清除按鈕
+            const clearBtn = document.createElement('button');
+            clearBtn.textContent = '清除所有記錄';
+            clearBtn.style.cssText = 'margin-top:12px;background:#5a2a2a;border:1px solid #833;border-radius:6px;padding:6px 12px;color:#ff6b6b;font-size:12px;cursor:pointer';
+            clearBtn.addEventListener('click', () => {
+                if (confirm('確定要清除所有歷史記錄？')) {
+                    localStorage.removeItem(FARM_LOBBY_HISTORY_KEY);
+                    localStorage.setItem(FARM_LOBBY_COUNT_KEY, '0');
+                    autoFarmFeature.stop();
+                    modal.remove();
+                    // 更新計數器顯示
+                    const countEl = document.getElementById('lh5-lobby-count-display');
+                    if (countEl) countEl.textContent = '0';
+                }
+            });
+            body.appendChild(clearBtn);
+        }
+        
+        content.appendChild(body);
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+        
+        // 關閉事件
+        document.getElementById('lh5-history-close')?.addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
 
 })();
