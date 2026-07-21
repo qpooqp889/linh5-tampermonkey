@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.83
+// @version      2.84
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -297,13 +297,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.83 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.84 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.83 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.84 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -2309,7 +2309,7 @@
         const gb = tb.querySelector('.gold-box');
         if (gb) {
             if (!gb.parentNode.querySelector('#lh5-settings-btn')) gb.after(gearBtn);
-            const themeBtn = document.createElement('button');
+            let themeBtn = document.createElement('button');
             themeBtn.id = 'theme-btn';
             themeBtn.textContent = '配置';
             themeBtn.style.cssText = 'margin-left:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#c8a96e;font-size:12px;cursor:pointer;font-family:inherit;';
@@ -2321,7 +2321,7 @@
         }
         else {
             if (!tb.querySelector('#lh5-settings-btn')) tb.appendChild(gearBtn);
-            const themeBtn = document.createElement('button');
+            let themeBtn = document.createElement('button');
             themeBtn.id = 'theme-btn';
             themeBtn.textContent = '配置';
             themeBtn.style.cssText = 'margin-left:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#c8a96e;font-size:12px;cursor:pointer;font-family:inherit;';
