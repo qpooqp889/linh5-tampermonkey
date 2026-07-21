@@ -9,7 +9,7 @@
 2. 點擊下方安裝連結
 
 ### 安裝連結
-> [**🔗 安裝 LinH5 工具箱 v2.76**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
+> [**🔗 安裝 LinH5 工具箱 v2.77**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
 
 或手動新增腳本，將 [linh5-tampermonkey.user.js](./linh5-tampermonkey.user.js) 內容貼入。
 
@@ -72,6 +72,7 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 
 | 版本 | 說明 |
 |------|------|
+| v2.77 | 🌐 黑名單修復：IP 黑名單時登入頁不再顯示「Xs 後自動登入」倒數，改顯示「IP黑名單，已停用自動登入」 |
 | v2.76 | 🌐 IP 黑名單優化：① 黑名單 IP 時登入按鈕顯示反灰（grayscale + 半透明 + not-allowed）；② 腳本初始化即偵測對外 IP（頂部「配置」鈕即時顯示）；③ 登入頁面板首次出現時立即重新偵測現在 IP |
 | v2.75 | 🌐 IP 黑名單防護：① 隱藏預設黑名單 203.203.81.145 / 211.72.117.241 不自動登入；② 登入頁面板顯示現在IP與黑名單狀態；③ 可手動「加入/移除黑名單」；④ 黑名單IP自動停用自動登入，其餘正常登入 |
 | v2.74 | 🌐 IP 偵測防護改版：① 登入按鈕下方顯示「現在IP / 上次IP」面板；② 每 20 秒更新對外 IP；③ 兩者不一致則自動停用自動登入；④ 提供「刷新」與「同步上次IP」按鈕；⑤ 一致才觸發自動登入 |

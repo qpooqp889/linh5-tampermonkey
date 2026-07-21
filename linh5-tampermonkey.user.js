@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.76
+// @version      2.77
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -297,13 +297,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.76 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.77 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.76 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.77 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -1846,7 +1846,14 @@
             if (loginBtn && !loginBtn.classList.contains('hidden') && loginBtn.offsetParent !== null) {
                 let cd = loginBtn.parentNode.querySelector('.lh5-login-cd');
                 if (!cd) { cd = document.createElement('span'); cd.className = 'lh5-login-cd'; cd.style.cssText = 'color:#ff6b6b;font-size:13px;margin-left:8px;font-weight:bold'; loginBtn.parentNode.insertBefore(cd, loginBtn.nextSibling); }
-                cd.textContent = `（${_afkCountdown}s 後自動登入）`;
+                // 黑名單 → 不自動登入，停止倒數顯示
+                if (!autoFarmFeature.isIPAllowed()) {
+                    cd.textContent = '（IP黑名單，已停用自動登入）';
+                    cd.style.color = '#e04040';
+                } else {
+                    cd.textContent = `（${_afkCountdown}s 後自動登入）`;
+                    cd.style.color = '#ff6b6b';
+                }
             } else {
                 const old = document.querySelector('.lh5-login-cd');
                 if (old) old.remove();
@@ -1900,9 +1907,9 @@
             const loginBtn = document.getElementById('btn-login');
             if (loginBtn && !loginBtn.classList.contains('hidden') && loginBtn.offsetParent !== null) {
                 if (!autoFarmFeature.isIPAllowed()) {
-                    // IP 不一致 → 不自動登入
+                    // IP 黑名單 → 不自動登入
                     const cd = loginBtn.parentNode.querySelector('.lh5-login-cd');
-                    if (cd) cd.textContent = '（IP不一致，已停用自動登入）';
+                    if (cd) cd.textContent = '（IP黑名單，已停用自動登入）';
                     return;
                 }
                 _clickEl(loginBtn);
