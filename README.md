@@ -9,7 +9,7 @@
 2. 點擊下方安裝連結
 
 ### 安裝連結
-> [**🔗 安裝 LinH5 工具箱 v2.79**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
+> [**🔗 安裝 LinH5 工具箱 v2.80**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
 
 或手動新增腳本，將 [linh5-tampermonkey.user.js](./linh5-tampermonkey.user.js) 內容貼入。
 
@@ -72,6 +72,7 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 
 | 版本 | 說明 |
 |------|------|
+| v2.80 | 🌐 恢復頂部「配置」按鈕（theme-btn）：顯示現在 IP 與 20 秒倒數（`配置 · 1.2.* · Ns`），每 20 秒自動更新對外 IP；黑名單時顯示紅字「IP黑名單!」 |
 | v2.79 | 🌐 移除頂部「配置」按鈕（theme-btn）：IP 資訊改由登入頁 IP 面板顯示；設定仍由齒輪按鈕開啟 |
 | v2.78 | 🌐 黑名單強化：IP 黑名單時直接將登入按鈕從 DOM 移除（而非反灰），IP 面板仍保留顯示；離開登入頁時面板自動清除 |
 | v2.77 | 🌐 黑名單修復：IP 黑名單時登入頁不再顯示「Xs 後自動登入」倒數，改顯示「IP黑名單，已停用自動登入」 |
