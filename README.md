@@ -9,7 +9,7 @@
 2. 點擊下方安裝連結
 
 ### 安裝連結
-> [**🔗 安裝 LinH5 工具箱 v2.71**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
+> [**🔗 安裝 LinH5 工具箱 v2.73**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
 
 或手動新增腳本，將 [linh5-tampermonkey.user.js](./linh5-tampermonkey.user.js) 內容貼入。
 
@@ -72,6 +72,7 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 
 | 版本 | 說明 |
 |------|------|
+| v2.73 | 🌐 新增 IP 偵測防護：① 腳本啟動時偵測對外 IP；② 每次掛機開始記錄基準 IP；③ 每 10 秒偵測一次，IP 變更則自動停止「自動登入」功能；④ 頂部「配置」按鈕顯示 IP 與 20 秒倒數 |
 | v2.72 | 🤖 掛機腳本增強：① 回大廳方式新增「隨機村莊」選項（9 選 1）；② 新增歷史清單按鈕 + Modal，記錄每次回大廳的時間/地點/等待秒數 |
 | v2.71 | 🤖 掛機腳本新增兩項延遲保護：① 回地圖隨機延遲 0~2 秒；② 回大廳 >30 次觸發 5~15 分鐘隨機長延遲 |
 | v2.20 | 😍 好友系統（新增/搜尋/刪除/匯出匯入 JSON）|

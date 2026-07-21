@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.72
+// @version      2.73
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -297,13 +297,13 @@
     //  🧩 DOM（齒輪 + Modal）— 只建立一次
     // ============================================================
     const gearBtn = document.createElement('div');
-    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.71 · 按一下打開';
+    gearBtn.id = 'lh5-settings-btn'; gearBtn.textContent = '⚙'; gearBtn.title = '設定 v2.73 · 按一下打開';
 
     const overlay = document.createElement('div'); overlay.id = 'lh5-modal-overlay';
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.71 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.73 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -1106,6 +1106,14 @@
         let _gotoDelayTotalMs = 0;       // 計算好的延遲總毫秒數
         let _gotoDelayWaitSeconds = 0;   // 計算好的延遲總秒數（用於歷史記錄）
         let _lastLobbyRecord = null;    // 最後一次回大廳記錄（暫存）
+        // IP 偵測相關
+        let _externalIP = '';            // 當前對外 IP
+        let _baselineIP = '';           // 掛機開始時記錄的基準 IP
+        let _ipTimer = null;            // 每 10 秒偵測 IP 的定時器
+        let _themeTimer = null;         // 每 1 秒更新按鈕倒數
+        let _ipCountdown = 20;          // 按鈕倒數秒數（20 秒週期）
+        let _ipCheckStarted = false;    // IP 偵測是否已啟動
+        let _ipChanged = false;         // IP 是否變更過
 
         function updateLobbyCountDisplay() {
             const el = document.getElementById('lh5-lobby-count-display');
@@ -1125,6 +1133,64 @@
             // 只保留最近 100 筆
             if (history.length > 100) history.length = 100;
             localStorage.setItem(FARM_LOBBY_HISTORY_KEY, JSON.stringify(history));
+        }
+
+        // ===== IP 偵測功能 =====
+        async function fetchExternalIP() {
+            try {
+                const ctrl = new AbortController();
+                const to = setTimeout(() => ctrl.abort(), 5000);
+                const r = await fetch('https://api.ipify.org?format=json', { signal: ctrl.signal });
+                clearTimeout(to);
+                const d = await r.json();
+                return (d && d.ip) ? d.ip : '';
+            } catch (_) {
+                return '';
+            }
+        }
+
+        function updateThemeBtn() {
+            const btn = document.getElementById('theme-btn');
+            if (!btn) return;
+            const short = _externalIP ? _externalIP.replace(/\.\d+$/, '.*') : '??';
+            if (_ipChanged) {
+                btn.textContent = `配置 · IP變更!`;
+                btn.style.color = '#e04040';
+            } else {
+                btn.textContent = `配置 · ${short} · ${_ipCountdown}s`;
+                btn.style.color = '';
+            }
+        }
+
+        async function startIPCheck() {
+            if (_ipCheckStarted) return;
+            _ipCheckStarted = true;
+            // 首次偵測 IP
+            _externalIP = await fetchExternalIP();
+            console.log(`[LinH5] 對外 IP: ${_externalIP}`);
+            updateThemeBtn();
+            // 每 10 秒偵測一次 IP
+            _ipTimer = setInterval(async () => {
+                const ip = await fetchExternalIP();
+                if (!ip) return;
+                _externalIP = ip;
+                // IP 變更檢查
+                if (_baselineIP && ip !== _baselineIP) {
+                    if (!_ipChanged) {
+                        _ipChanged = true;
+                        console.log(`[LinH5] ⚠ IP 變更 ${_baselineIP} → ${ip}，停止自動登入`);
+                        // 停止自動登入（斷線重連巡邏）
+                        if (_reconnectTimer) { clearInterval(_reconnectTimer); _reconnectTimer = null; }
+                        updateThemeBtn();
+                    }
+                }
+            }, 10000);
+            // 每 1 秒更新按鈕倒數（20 秒週期顯示）
+            _themeTimer = setInterval(() => {
+                _ipCountdown--;
+                if (_ipCountdown <= 0) _ipCountdown = 20;
+                updateThemeBtn();
+            }, 1000);
         }
 
         function loadConfig() {
@@ -1415,7 +1481,12 @@
             _gotoDelayTotalMs = 0; // 重置延遲總毫秒數
             // _lobbyCount 不重置，跨 session 持續累計
             updateLobbyCountDisplay(); // 啟動時更新 UI
-            console.log(`[LinH5 掛機] 啟動，目標地圖: ${getTargetZoneName()}`);
+            // IP 偵測：記錄基準 IP 並啟動偵測
+            if (!_ipCheckStarted) startIPCheck();
+            _baselineIP = _externalIP; // 掛機開始時記錄當前 IP 為基準
+            _ipChanged = false; // 重置變更標記
+            updateThemeBtn();
+            console.log(`[LinH5 掛機] 啟動，目標地圖: ${getTargetZoneName()} · 基準IP: ${_baselineIP}`);
             if (timer) { clearInterval(timer); timer = null; }
             timer = setInterval(tick, 2000);
             // 斷線重連巡邏
@@ -1448,7 +1519,7 @@
 
         function isRunning() { return _enabled; }
 
-        return { tryStart, disable, runWithConfig, stop, isRunning, getLobbyHistory };
+        return { tryStart, disable, runWithConfig, stop, isRunning, getLobbyHistory, startIPCheck };
     })();
 
     // ============================================================
@@ -2105,8 +2176,29 @@
     function mountGear() {
         const tb = document.getElementById('topbar'); if (!tb) { setTimeout(mountGear, 300); return; }
         const gb = tb.querySelector('.gold-box');
-        if (gb) { if (!gb.parentNode.querySelector('#lh5-settings-btn')) gb.after(gearBtn); }
-        else { if (!tb.querySelector('#lh5-settings-btn')) tb.appendChild(gearBtn); }
+        if (gb) {
+            if (!gb.parentNode.querySelector('#lh5-settings-btn')) gb.after(gearBtn);
+            // 掛載 theme-btn（配置 + IP 倒數）
+            if (!gb.parentNode.querySelector('#theme-btn')) {
+                const themeBtn = document.createElement('button');
+                themeBtn.id = 'theme-btn';
+                themeBtn.textContent = '配置';
+                themeBtn.style.cssText = 'margin-left:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#c8a96e;font-size:12px;cursor:pointer;font-family:inherit;';
+                themeBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
+                gb.after(themeBtn);
+            }
+        }
+        else {
+            if (!tb.querySelector('#lh5-settings-btn')) tb.appendChild(gearBtn);
+            if (!tb.querySelector('#theme-btn')) {
+                const themeBtn = document.createElement('button');
+                themeBtn.id = 'theme-btn';
+                themeBtn.textContent = '配置';
+                themeBtn.style.cssText = 'margin-left:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#c8a96e;font-size:12px;cursor:pointer;font-family:inherit;';
+                themeBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
+                tb.appendChild(themeBtn);
+            }
+        }
     }
 
     // ============================================================
@@ -2249,6 +2341,7 @@
     gachaFeaturesStart();
     initFeatures();
     startBossAuto();
+    autoFarmFeature.startIPCheck(); // 啟動 IP 偵測（腳本開始時）
 
     // ============================================================
     //  🛡️ 超級巡邏員（唯一 setInterval — 永遠有效，輕量無害）
