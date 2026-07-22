@@ -1894,6 +1894,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
     }
 
     let _afkCountdown = 0;
+    let _charSelFired = false; // 防止 1 秒 interval 重複發送 selectChar
     let _loginContainer = null; // 記錄登入容器，黑名單刪除按鈕後仍用來保留 IP 面板
     function startAfkCheck() {
         // 倒數 UI 每秒更新（共用 _afkCountdown，兩個畫面不同時出現）
@@ -1939,11 +1940,19 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             const h2txt = h2 ? h2.textContent.trim() : '';
             const slotsEl = document.getElementById('slots');
             if (h2 && h2txt.startsWith('選 擇 角 色') && slotsEl) {
+                // 進場時（flag 未設）立即發送一次 selectChar
+                if (!_charSelFired) {
+                    _charSelFired = true;
+                    const slotIdx = parseInt(localStorage.getItem('lh5_farm_slot'), 10) || 0;
+                    window._emitSocket('selectChar', slotIdx);
+                    console.log(`[LinH5] 選角頁 → 立即送出 selectChar slot=${slotIdx}`);
+                }
                 let cd = h2.querySelector('.lh5-afk-cd');
                 if (!cd) { cd = document.createElement('span'); cd.className = 'lh5-afk-cd'; cd.style.cssText = 'color:#ff6b6b;font-size:16px;margin-left:10px;font-weight:bold'; h2.appendChild(cd); }
                 cd.textContent = `(${_afkCountdown}s 後自動點擊)`;
                 _afkCountdown = (_afkCountdown + 59) % 60;
-            } else if (!loginBtn || loginBtn.classList.contains('hidden') || loginBtn.offsetParent === null) {
+            } else {
+                _charSelFired = false; // 離開選角頁 → 重置 flag
                 _afkCountdown = 0;
                 const old = document.querySelector('.lh5-afk-cd');
                 if (old) old.remove();
