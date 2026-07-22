@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.91
+// @version      2.92
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1383,6 +1383,8 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                 }
             } catch(_) {}
         }
+        // 確保 autoFarmFeature 外的 setInterval（如 startAfkCheck 內的）也能抓到
+        window._emitSocket = _emitSocket;
 
         // 回大廳/選角（依設定選擇封包）
         // 注意：selectChar 可直接在遊戲中發送，伺服器處理重生回銀騎士+滿血滿魔
@@ -1971,7 +1973,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             const slotsEl2 = document.getElementById('slots');
             if (h2 && h2txt2.startsWith('選 擇 角 色') && slotsEl2) {
                 const slotIdx = parseInt(localStorage.getItem('lh5_farm_slot'), 10) || 0;
-                _emitSocket('selectChar', slotIdx);
+                window._emitSocket('selectChar', slotIdx);
                 console.log(`[LinH5] 送出 selectChar slot=${slotIdx}`);
             }
         }, 60000);
