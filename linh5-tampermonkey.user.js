@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.87
+// @version      2.90
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -443,6 +443,14 @@
                                     <option value="randomTown" ${lobbyMode === 'randomTown' ? 'selected' : ''}>🎲 隨機村莊（9選1）</option>
                                 </select>
                             </div>
+                            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#ccc">
+                                <span>🎭 角色槽：</span>
+                                <select id="lh5-farm-slot" style="flex:1;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
+                                    <option value="0" ${(parseInt(localStorage.getItem(FARM_SLOT_KEY),10)||0)===0?'selected':''}>槽位 0（第一隻）</option>
+                                    <option value="1" ${(parseInt(localStorage.getItem(FARM_SLOT_KEY),10)||0)===1?'selected':''}>槽位 1（第二隻）</option>
+                                    <option value="2" ${(parseInt(localStorage.getItem(FARM_SLOT_KEY),10)||0)===2?'selected':''}>槽位 2（第三隻）</option>
+                                </select>
+                            </div>
                             <div style="margin-top:8px;padding:6px;background:#15152a;border-radius:6px;font-size:12px;color:#aaa">
                                 <div style="margin-bottom:4px">🔫 回大廳裝備：</div>
                                 <select id="lh5-farm-lobby-weapon" style="width:100%;background:#0d0d18;border:1px solid #333;border-radius:4px;padding:3px 6px;color:#e0d5c1;font-size:12px;outline:none;cursor:pointer">
@@ -561,6 +569,9 @@
 
                 localStorage.setItem(FARM_LOBBY_WEAPON_KEY, document.getElementById('lh5-farm-lobby-weapon')?.value || '');
                 localStorage.setItem(FARM_ZONE_WEAPON_KEY, document.getElementById('lh5-farm-zone-weapon')?.value || '');
+                // 角色槽
+                const slotEl = document.getElementById('lh5-farm-slot');
+                if (slotEl) localStorage.setItem(FARM_SLOT_KEY, slotEl.value);
 
                 // 更新狀態列
                 const st = document.getElementById('lh5-farm-status');
@@ -573,6 +584,8 @@
             farmHigh.addEventListener('input', saveFarm);
             farmZone.addEventListener('change', saveFarm);
             farmZone.addEventListener('click', saveFarm);
+            const slotEl2 = document.getElementById('lh5-farm-slot');
+            if (slotEl2) slotEl2.addEventListener('change', saveFarm);
             // 武器下拉立即存
             document.getElementById('lh5-farm-lobby-mode')?.addEventListener('change', function(){
                 localStorage.setItem(FARM_LOBBY_MODE_KEY, this.value);
