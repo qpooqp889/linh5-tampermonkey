@@ -388,7 +388,7 @@
         if (localStorage.getItem('lh5_farm_ui_open') !== '0') {
             const farmLowVal = localStorage.getItem(FARM_LOW_KEY) || '10';
             const farmHighVal = localStorage.getItem(FARM_HIGH_KEY) || '80';
-            const farmZoneVal = localStorage.getItem(FARM_ZONE_KEY) || 'zone_07';
+            const farmZoneVal = localStorage.getItem(FARM_ZONE_KEY) || 'training';
             const farmZoneName = FARM_ZONES.find(z => z.id === farmZoneVal)?.name || '古魯丁地監2樓';
             const mpEnabled = localStorage.getItem(FARM_MP_ENABLED_KEY) !== '0'; // 預設 1
             const hpEnabled = localStorage.getItem(FARM_HP_ENABLED_KEY) === '1';
@@ -514,7 +514,7 @@
                         } else {
                             const l = parseInt(document.getElementById('lh5-farm-low')?.value || '10', 10);
                             const h = parseInt(document.getElementById('lh5-farm-high')?.value || '80', 10);
-                            const z = document.getElementById('lh5-farm-zone')?.value || 'zone_07';
+                            const z = document.getElementById('lh5-farm-zone')?.value || 'training';
                             autoFarmFeature.runWithConfig(l, h, z);
                             gearBtn.style.animation = 'lh5-gear-running 1.5s linear infinite';
                             gearBtn.style.border = '2px solid #4ade80';
@@ -1097,7 +1097,7 @@
         let _enabled = false;
         let _mpLow = 10;
         let _mpHigh = 80;
-        let _targetZone = 'zone_07';
+        let _targetZone = 'training';
         let _isResting = false; // 是否正在回MP狀態
         let _reconnectSlot = 0; // 斷線重連的角色位置 0/1/2
         let _reconnectSec = 300; // 斷線重連檢查間隔（秒）
@@ -1313,7 +1313,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                 _mpHigh = parseInt(localStorage.getItem(FARM_HIGH_KEY), 10) || 80;
                 _hpLow = parseInt(localStorage.getItem(FARM_HP_LOW_KEY), 10) || 30;
                 _hpHigh = parseInt(localStorage.getItem(FARM_HP_HIGH_KEY), 10) || 80;
-                _targetZone = localStorage.getItem(FARM_ZONE_KEY) || 'zone_07';
+                _targetZone = localStorage.getItem(FARM_ZONE_KEY) || 'training';
                 _lobbyMode = localStorage.getItem(FARM_LOBBY_MODE_KEY) || 'randomTown';
                 _reconnectSlot = parseInt(localStorage.getItem(FARM_SLOT_KEY), 10) || 0;
                 _reconnectSec = parseInt(localStorage.getItem(FARM_RECONNECT_KEY), 10) || 300;
