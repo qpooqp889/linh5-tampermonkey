@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.90
+// @version      2.91
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -1932,10 +1932,11 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                     ipPanel.remove();
                 }
             }
-            // 選角頁倒數
+            // 選角頁倒數（同時檢查 h2 文字 + #slots 容器存在）
             const h2 = document.querySelector('h2');
             const h2txt = h2 ? h2.textContent.trim() : '';
-            if (h2 && h2txt.startsWith('選 擇 角 色')) {
+            const slotsEl = document.getElementById('slots');
+            if (h2 && h2txt.startsWith('選 擇 角 色') && slotsEl) {
                 let cd = h2.querySelector('.lh5-afk-cd');
                 if (!cd) { cd = document.createElement('span'); cd.className = 'lh5-afk-cd'; cd.style.cssText = 'color:#ff6b6b;font-size:16px;margin-left:10px;font-weight:bold'; h2.appendChild(cd); }
                 cd.textContent = `(${_afkCountdown}s 後自動點擊)`;
@@ -1964,10 +1965,11 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                 }
                 _clickEl(loginBtn);
             }
-            // 3. 選擇角色畫面
+            // 3. 選擇角色畫面（同時檢查 h2 文字 + #slots 容器存在）
             const h2 = document.querySelector('h2');
             const h2txt2 = h2 ? h2.textContent.trim() : '';
-            if (h2 && h2txt2.startsWith('選 擇 角 色')) {
+            const slotsEl2 = document.getElementById('slots');
+            if (h2 && h2txt2.startsWith('選 擇 角 色') && slotsEl2) {
                 const slotIdx = parseInt(localStorage.getItem('lh5_farm_slot'), 10) || 0;
                 _emitSocket('selectChar', slotIdx);
                 console.log(`[LinH5] 送出 selectChar slot=${slotIdx}`);
