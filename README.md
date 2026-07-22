@@ -9,7 +9,7 @@
 2. 點擊下方安裝連結
 
 ### 安裝連結
-> [**🔗 安裝 LinH5 工具箱 v2.91**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
+> [**🔗 安裝 LinH5 工具箱 v2.92**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
 
 或手動新增腳本，將 [linh5-tampermonkey.user.js](./linh5-tampermonkey.user.js) 內容貼入。
 
@@ -100,6 +100,7 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 | v2.12 | 掛機自動選擇野外/地監 subtab |
 | v2.11 | 掛機運行/停止按鈕 + 齒輪動畫 |
 | v2.10 | 戰鬥畫面縮放功能 |
+| v2.92 | 🐛 修 `_emitSocket is not defined`（setInterval 閉包抓不到 IIFE 內函式宣告），改為附加至 `window._emitSocket` |
 | v2.91 | 🎯 選角畫面判斷加強：同時檢查 h2 文字 + `#slots` 容器存在，避免誤判 |
 | v2.90 | 🎭 設定面板新增「角色槽」下拉（0/1/2），控制 selectChar 封包參數 |
 | v2.09 | 自動掛機腳本（MP 管理）|
