@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.92
+// @version      2.94
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -316,7 +316,7 @@
         { key: 'autoFarm', label: '🤖 掛機腳本', desc: 'MP過低自動回大廳，MP足夠自動前往地圖掛機' },
         { key: 'bossPinAlive', label: '世界王自動更新置頂', desc: '將「存活中」的世界王自動排到列表最前面' },
         { key: 'bagSearch', label: '背包物品檢索', desc: '在背包上方新增搜尋框與 +4~+10 強化篩選下拉' },
-        { key: 'tradeMoneySearch', label: '交易所金錢搜尋', desc: '在交易所新增金額模糊搜尋 + 價格簡寫' },
+        { key: 'tradeMoneySearch', label: '交易所金錢搜尋', desc: '在交易所新增金額模糊搜尋 + 價錢低→高排序' },
         { key: 'nameChange', label: '變更姓名', desc: '自訂顯示名稱（不影響伺服器）' },
     ];
     function getStored(key, def) {
@@ -882,26 +882,24 @@
             return String(priceNum).includes(String(qNum));
         }
 
-        // ── 價格簡寫: 1299999 → 129.99... 萬 / 2800000 → 280 萬 / 1.5 億 ──
-        function formatPriceShort(priceNum) {
-            if (priceNum >= 100000000) {
-                const yi = (priceNum / 100000000).toFixed(1).replace(/\.0$/, '');
-                return yi + ' 億';
+        // ── 解析價格數字（新 DOM: <b>1億</b> 或舊格式） ──
+        function parsePrice(el) {
+            // 新版 DOM: <div class="si-p">💰 <b>1億</b> <span class="dim">(100,000,000)</span> ...</div>
+            const dimEl = el.querySelector('.si-p .dim');
+            if (dimEl) {
+                // 從括號內提取數字: (100,000,000)
+                const dimText = dimEl.textContent || '';
+                const match = dimText.match(/\(([\d,]+)\)/);
+                if (match) {
+                    return parseInt(match[1].replace(/,/g, ''), 10) || 0;
+                }
             }
-            if (priceNum >= 10000) {
-                const s = String(priceNum);
-                const intPart = s.slice(0, -4);
-                const decPart = s.slice(-4);
-                // 全部 0 → 整數萬
-                if (decPart === '0000') return intPart + ' 萬';
-                // 取前 2 位小數，去尾零
-                const kept = decPart.slice(0, 2).replace(/0+$/, '');
-                return intPart + '.' + kept + ' 萬';
-            }
-            return '';
+            // 舊版 fallback: 從整個 .si-p textContent 提取
+            const priceText = el.querySelector('.si-p')?.textContent || '0';
+            return parseInt(priceText.replace(/[^\d]/g, ''), 10) || 0;
         }
 
-        // ── 過濾 + 價格簡寫 ──
+        // ── 過濾（移除價格簡寫功能，網站已內建） ──
         function applyFilterAndFormat() {
             if (_busy) return;
             const list = document.getElementById('trade-list');
@@ -916,41 +914,24 @@
                 const priceEl = el.querySelector('.si-p');
                 if (!priceEl) { el.classList.remove('lh5-trade-hidden-money'); return; }
 
-                // ★ 先移除舊的簡寫 span（否則 textContent 會包含它的數字，導致下一輪數字膨脹）
-                const oldFmt = priceEl.querySelector('.lh5-price-fmt');
-                if (oldFmt) oldFmt.remove();
-
-                // ★ 現在讀 textContent 才是乾淨的
-                const priceText = priceEl.textContent || '';
+                // 使用 parsePrice 取得價格數字（兼容新舊 DOM）
+                const priceNum = parsePrice(el);
 
                 // ── 過濾 ──
-                if (!query || fuzzyMatchPrice(priceText, query)) {
+                if (!query || fuzzyMatchPrice(String(priceNum), query)) {
                     el.classList.remove('lh5-trade-hidden-money');
                 } else {
                     el.classList.add('lh5-trade-hidden-money');
                 }
-
-                // ── 價格簡寫 ──
-                const priceNum = parseInt(priceText.replace(/[^\d]/g, ''), 10);
-                if (!isNaN(priceNum)) {
-                    const fmt = formatPriceShort(priceNum);
-                    if (fmt) {
-                        const span = document.createElement('span');
-                        span.className = 'lh5-price-fmt';
-                        span.textContent = fmt;
-                        span.style.cssText = 'color:#f5c451;font-weight:bold;font-size:11px;margin-left:4px;';
-                        priceEl.appendChild(span);
-                    }
-                }
             });
 
-            // ── 排序 ──
+            // ── 排序（使用 parsePrice 從 .dim 提取精確數字） ──
             const sortSelect = document.getElementById('lh5-trade-sort');
             if (sortSelect && sortSelect.value === 'priceAsc') {
                 if (listObserver) listObserver.disconnect();
                 const sorted = Array.from(list.children).filter(el => el.classList.contains('shop-item')).sort((a, b) => {
-                    const pa = parseInt((a.querySelector('.si-p')?.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
-                    const pb = parseInt((b.querySelector('.si-p')?.textContent || '0').replace(/[^\d]/g, ''), 10) || 0;
+                    const pa = parsePrice(a);
+                    const pb = parsePrice(b);
                     return pa - pb;
                 });
                 sorted.forEach(el => list.appendChild(el));
@@ -1030,7 +1011,7 @@
         function tryStart() {
             const ok = injectMoneySearch();
             setupObserver();
-            // ★ 立刻過濾 + 價格簡寫（處理 observer 綁定前已存在的項目）
+            // ★ 立刻過濾（處理 observer 綁定前已存在的項目）
             applyFilterAndFormat();
             setTimeout(applyFilterAndFormat, 200);
             setTimeout(applyFilterAndFormat, 800);

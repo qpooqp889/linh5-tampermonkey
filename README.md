@@ -9,7 +9,7 @@
 2. 點擊下方安裝連結
 
 ### 安裝連結
-> [**🔗 安裝 LinH5 工具箱 v2.93**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
+> [**🔗 安裝 LinH5 工具箱 v2.94**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
 
 或手動新增腳本，將 [linh5-tampermonkey.user.js](./linh5-tampermonkey.user.js) 內容貼入。
 
@@ -31,11 +31,11 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 - 下拉選單：依**強化值 +4 ~ +10** 篩選
 - 統計顯示「顯示 X / 總數」
 
-### 💰 交易所金錢模糊搜尋
+### 💰 交易所金錢搜尋
 - 名稱搜尋框下方新增 `💰` 金額輸入框
 - 模糊數字匹配：輸入 `800` 可找到 `2,800,000`
-- 自動在價格後附加簡寫：`2,800,000` → `280 萬`
 - 右側排序下拉：可選「價錢低→高」排序
+- *v2.94: 移除價格簡寫功能（網站已內建），修正排序邏輯兼容新版 DOM*
 
 ### 🏷️ 變更姓名
 - 開關「變更姓名」，開啟後顯示輸入框
