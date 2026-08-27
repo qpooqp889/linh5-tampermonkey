@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.26
+// @version      3.0.27
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2855,7 +2855,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                     if (state.eligibleTotal < beforeState.eligibleTotal) {
                         const upgraded = state.entries.filter(x => x.name === lock.name && x.enchant > before).sort((a, b) => a.enchant - b.enchant || a.index - b.index)[0] || null;
                         const status = upgraded ? 'success' : 'failed';
-                        const detail = upgraded ? `成功，強化值 ${before} → ${upgraded.enchant}，下一輪只重新掃描 +${lock.targetEnchant} 的同名裝備` : (state.total < beforeState.total ? '強化消失，下一輪重新掃描最新 index' : '維持不變');
+                        const detail = upgraded ? `成功，強化值 ${before} → ${upgraded.enchant}，下一輪只重新掃描 +${lock.targetEnchant} 的同名裝備` : (state.total < beforeState.total ? '強化消失，下一輪重新掃描最新 index' : `強化前後同為 +${before}，維持不變`);
                         lockedEnhanceDebug(upgraded ? 'SUCCESS' : 'FAILED_SHIFT', { batchId, oldIndex: found.index, newIndex: state.eligible[0]?.index ?? null, beforeEnchant: before, afterEnchant: upgraded?.enchant ?? null, eligibleBefore: beforeState.eligibleTotal, eligibleAfter: state.eligibleTotal, totalBefore: beforeState.total, totalAfter: state.total, cell: getEnhanceCellSnapshot(state.eligible[0]?.index ?? found.index) });
                         resolveEnhanceOperation(operation, status, detail);
                         completed++; timer = setTimeout(runOne, 350); return;
@@ -2962,7 +2962,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
         function updateEnhanceProgressForOperation(op, status, detail) {
             const state = enhanceProgressState; if (!state || op.batchId !== state.batchId) return;
             state.completed = Math.min(state.total, state.completed + 1); state.current = { name: op.name, index: op.index };
-            if (status === 'success') state.success++; else if (status === 'failed') state.failed++; else state.unknown++;
+            if (status === 'success') state.success++; else state.failed++;
             state.results.push({ status, name: op.name, index: op.index, detail: detail || '' });
             if (state.completed >= state.total) { state.finished = true; const resolved = state.success + state.failed; const rate = resolved ? ((state.success / resolved) * 100).toFixed(1) : '0.0'; state.finishText = `${state.completed}/${state.total} 完成｜成功 ${state.success}｜失敗 ${state.failed}｜未知 ${state.unknown}｜成功率 ${rate}%`; }
             renderEnhanceProgress();
@@ -2986,6 +2986,8 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
         function resolveEnhanceOperation(op, status, detail) {
             const idx = enhancePending.indexOf(op); if (idx >= 0) enhancePending.splice(idx, 1);
             const after = Number(getLiveInventoryItem(op.index)?.en || 0);
+            // 強化前後數值相同，一律歸類為失敗，不保留為未知。
+            if (after === op.beforeEnchant && status !== 'success') { status = 'failed'; detail = '維持不變'; }
             addEnhanceLog({ batchId: op.batchId, name: op.name, cat: op.cat, index: op.index, event: op.eventName, before: op.beforeEnchant, after, status, detail: detail || '' });
             updateEnhanceProgressForOperation(op, status, detail || '');
             enhancePending.filter(next => next.index === op.index).forEach(next => { next.beforeEnchant = after; });
