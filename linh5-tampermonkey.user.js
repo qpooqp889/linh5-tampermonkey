@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.5
+// @version      3.0.6
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2773,7 +2773,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                 if (!map.has(key)) map.set(key, { key, cat: x.cat, name: x.name, enchant: x.enchant, total: 0, entries: [] });
                 const group = map.get(key); group.total += x.count; group.entries.push({ index: x.index, count: x.count });
             });
-            return [...map.values()].sort((a, b) => a.cat.localeCompare(b.cat) || a.name.localeCompare(b.name, 'zh-Hant') || a.enchant - b.enchant);
+            return [...map.values()].sort((a, b) => (a.entries[0]?.index ?? Number.MAX_SAFE_INTEGER) - (b.entries[0]?.index ?? Number.MAX_SAFE_INTEGER) || a.cat.localeCompare(b.cat) || a.name.localeCompare(b.name, 'zh-Hant') || a.enchant - b.enchant);
         }
         function switchEnhanceTab(cat) {
             const tab = getEnhanceTab(cat);
