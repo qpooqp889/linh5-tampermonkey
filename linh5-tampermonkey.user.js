@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.1
+// @version      3.0.4
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2597,6 +2597,16 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             #lh5-craft-modal .lh5-craft-actions button{flex:1;padding:8px;border:0;border-radius:6px;cursor:pointer;font-weight:700}
             #lh5-craft-modal .lh5-craft-submit{background:#c8a96e;color:#1a1a2e}
             #lh5-craft-modal .lh5-craft-cancel{background:#3a3a4e;color:#e0d5c1}
+            #lh5-enhance-modal{position:fixed;inset:0;z-index:1000001;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center}
+            #lh5-enhance-modal.open{display:flex}
+            #lh5-enhance-modal .lh5-enhance-card{width:min(400px,calc(100vw - 32px));background:#1a1a2e;border:1px solid #c8a96e;border-radius:12px;padding:18px;color:#e0d5c1;box-shadow:0 8px 40px rgba(0,0,0,.65);font:13px/1.5 system-ui,sans-serif}
+            #lh5-enhance-modal h3{margin:0 0 12px;color:#c8a96e;font-size:17px;display:flex;justify-content:space-between;align-items:center}
+            #lh5-enhance-modal .lh5-enhance-close{border:0;background:none;color:#ff7777;cursor:pointer;font-size:18px}
+            #lh5-enhance-modal select,#lh5-enhance-modal input{width:100%;box-sizing:border-box;margin:5px 0 10px;padding:8px;background:#0d0d18;border:1px solid #444;border-radius:6px;color:#fff;font-size:13px}
+            #lh5-enhance-modal .lh5-enhance-actions{display:flex;gap:8px}
+            #lh5-enhance-modal .lh5-enhance-actions button{flex:1;padding:8px;border:0;border-radius:6px;cursor:pointer;font-weight:700}
+            #lh5-enhance-modal .lh5-enhance-submit{background:#c8a96e;color:#1a1a2e}
+            #lh5-enhance-modal .lh5-enhance-cancel{background:#3a3a4e;color:#e0d5c1}
         `);
 
         const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2624,7 +2634,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
         }
         function toggleDashboard() { const el = createDashboard(); el.classList.toggle('open'); updateDashboard(); }
         function downloadProfile() {
-            const data = { schema: 'linh5-tampermonkey-profile', version: '3.0.0', exportedAt: new Date().toISOString(), settings: loadSettings(), localStorage: Object.fromEntries(exportKeys().map(k => [k, localStorage.getItem(k)])) };
+            const data = { schema: 'linh5-tampermonkey-profile', version: '3.0.4', exportedAt: new Date().toISOString(), settings: loadSettings(), localStorage: Object.fromEntries(exportKeys().map(k => [k, localStorage.getItem(k)])) };
             const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `linh5-profile-${new Date().toISOString().slice(0,10)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         }
@@ -2720,14 +2730,68 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             modal.classList.add('open');
             modal.querySelector('#lh5-craft-qty')?.focus();
                 }
+        function getEnhanceInventory() {
+            try {
+                const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                const inv = w.__lh5_inv;
+                if (!Array.isArray(inv)) return [];
+                const categories = new Set(['wpn', 'arm', 'armor', 'weapon', 'equipment']);
+                return inv.map((item, index) => ({ item, index })).filter(x => x.item && categories.has(String(x.item.cat || '').toLowerCase()) && x.item.n).map(x => ({ index: x.index, name: String(x.item.n), enchant: Number(x.item.en || 0), item: x.item }));
+            } catch (_) { return []; }
+        }
+        function getEnhanceGroups() {
+            const map = new Map();
+            getEnhanceInventory().forEach(x => { const key = `${x.name}|${x.enchant}`; if (!map.has(key)) map.set(key, { key, name: x.name, enchant: x.enchant, indices: [] }); map.get(key).indices.push(x.index); });
+            return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant') || a.enchant - b.enchant);
+        }
+        function openEnhanceModal() {
+            let modal = document.getElementById('lh5-enhance-modal');
+            if (!modal) {
+                modal = document.createElement('div'); modal.id = 'lh5-enhance-modal';
+                modal.innerHTML = `<div class="lh5-enhance-card"><h3><span>🛡️ 批次安定值強化</span><button class="lh5-enhance-close" type="button">✕</button></h3><div style="color:#aaa;margin-bottom:8px">只處理目前背包中的武器／防具；每件會送出一次 enhanceSafeInv(index)。</div><label for="lh5-enhance-item">選擇道具</label><select id="lh5-enhance-item"></select><label for="lh5-enhance-qty">批次強化數量</label><input id="lh5-enhance-qty" type="number" min="1" max="9999" value="1" step="1"><div id="lh5-enhance-hint" style="color:#888;font-size:12px;margin-bottom:10px"></div><div class="lh5-enhance-actions"><button type="button" class="lh5-enhance-cancel">取消</button><button type="button" class="lh5-enhance-submit">開始強化</button></div></div>`;
+                document.body.appendChild(modal);
+                const close = () => modal.classList.remove('open');
+                modal.querySelector('.lh5-enhance-close').addEventListener('click', close);
+                modal.querySelector('.lh5-enhance-cancel').addEventListener('click', close);
+                modal.addEventListener('click', e => { if (e.target === modal) close(); });
+                const select = modal.querySelector('#lh5-enhance-item');
+                const qty = modal.querySelector('#lh5-enhance-qty');
+                const hint = modal.querySelector('#lh5-enhance-hint');
+                const refresh = () => {
+                    const groups = getEnhanceGroups();
+                    const old = select.value;
+                    select.innerHTML = groups.length ? groups.map(g => `<option value="${g.key.replace(/"/g, '&quot;')}">${g.name} ${g.enchant > 0 ? '+' + g.enchant + ' ' : ''}(持有 ${g.indices.length} 件，index: ${g.indices.join(',')})</option>`).join('') : '<option value="">尚未讀取到武器／防具</option>';
+                    if (groups.some(g => g.key === old)) select.value = old;
+                    const current = groups.find(g => g.key === select.value);
+                    const max = current ? current.indices.length : 1;
+                    qty.max = max; qty.value = Math.min(Math.max(1, Number(qty.value) || 1), max);
+                    hint.textContent = current ? `目前可用 index：${current.indices.join(', ')}；最多可強化 ${max} 件` : '請先進入角色並等待背包資料載入';
+                };
+                select.addEventListener('change', refresh); qty.addEventListener('input', refresh);
+                modal.querySelector('.lh5-enhance-submit').addEventListener('click', () => {
+                    const groups = getEnhanceGroups(); const current = groups.find(g => g.key === select.value);
+                    if (!current) { alert('找不到可強化的武器或防具，請先重新整理背包。'); return; }
+                    const count = Math.max(1, Math.min(current.indices.length, parseInt(qty.value, 10) || 1));
+                    const indices = current.indices.slice(0, count);
+                    indices.forEach((index, order) => setTimeout(() => { craftEmit('enhanceSafeInv', index); console.log('[LH5] 🛡️ 安定值強化:', current.name, 'index:', index, `${order + 1}/${count}`); }, order * 350));
+                    close();
+                });
+                modal._lh5Refresh = refresh;
+            }
+            bindCraftItems();
+            modal._lh5Refresh?.();
+            modal.classList.add('open');
+            modal.querySelector('#lh5-enhance-qty')?.focus();
+        }
         function injectTools() {
             const body = document.getElementById('lh5-modal-body'); if (!body || document.getElementById(TOOLS_ID)) return;
             const tools = document.createElement('div'); tools.id = TOOLS_ID;
-            tools.innerHTML = `<div class="lh5-v20-tool-title">🧰 2.0 工具</div><div class="lh5-v20-tool-row"><button type="button" data-v20-action="export">匯出設定</button><button type="button" data-v20-action="import">匯入設定</button><button type="button" data-v20-action="dashboard">狀態面板</button></div><div class="lh5-v20-tool-row" style="margin-top:6px"><button type="button" data-v20-action="craft">🧵 批次製作</button></div><input id="lh5-v20-file" type="file" accept="application/json">`;
+            tools.innerHTML = `<div class="lh5-v20-tool-title">🧰 2.0 工具</div><div class="lh5-v20-tool-row"><button type="button" data-v20-action="export">匯出設定</button><button type="button" data-v20-action="import">匯入設定</button><button type="button" data-v20-action="dashboard">狀態面板</button></div><div class="lh5-v20-tool-row" style="margin-top:6px"><button type="button" data-v20-action="craft">🧵 批次製作</button><button type="button" data-v20-action="enhance">🛡️ 批次安定值</button></div><input id="lh5-v20-file" type="file" accept="application/json">`;
             body.appendChild(tools);
             tools.querySelector('[data-v20-action="export"]').addEventListener('click', downloadProfile);
             tools.querySelector('[data-v20-action="dashboard"]').addEventListener('click', toggleDashboard);
             tools.querySelector('[data-v20-action="craft"]').addEventListener('click', openCraftModal);
+            tools.querySelector('[data-v20-action="enhance"]').addEventListener('click', openEnhanceModal);
             const file = tools.querySelector('#lh5-v20-file');
             tools.querySelector('[data-v20-action="import"]').addEventListener('click', () => file.click());
             file.addEventListener('change', () => { if (file.files?.[0]) importProfile(file.files[0]); file.value = ''; });

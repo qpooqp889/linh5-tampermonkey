@@ -1,6 +1,6 @@
 # LinH5 工具箱 - Tampermonkey Userscript
 
-> **目前版本：v3.0.2（2.0 擴充版）**
+> **目前版本：v3.0.3（2.0 擴充版）**
 
 一個專為 [LinH5 放置天堂 · 即時版](https://linh5web.win/) 設計的 Tampermonkey 增強腳本。
 
@@ -11,7 +11,7 @@
 2. 點擊下方安裝連結
 
 ### 安裝連結
-> [**🔗 安裝 LinH5 工具箱 v3.0.2**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
+> [**🔗 安裝 LinH5 工具箱 v3.0.3**](https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js)
 
 或手動新增腳本，將 [linh5-tampermonkey.user.js](./linh5-tampermonkey.user.js) 內容貼入。
 
@@ -19,9 +19,11 @@
 
 ### 🚀 2.0 擴充功能
 
-v3.0.2 在既有功能之外加入一組低耦合的工具層。開啟右上角設定面板後，可以使用「匯出設定」將 `lh5_` 開頭的 localStorage 設定與 Tampermonkey 設定保存為 JSON；使用「匯入設定」可在重新安裝瀏覽器或更換裝置後恢復設定。匯入時只接受本工具產生的資料格式，且只寫入 `lh5_` 前綴的鍵值，不會覆蓋其他網站資料。
+v3.0.4 在既有功能之外加入一組低耦合的工具層。開啟右上角設定面板後，可以使用「匯出設定」將 `lh5_` 開頭的 localStorage 設定與 Tampermonkey 設定保存為 JSON；使用「匯入設定」可在重新安裝瀏覽器或更換裝置後恢復設定。匯入時只接受本工具產生的資料格式，且只寫入 `lh5_` 前綴的鍵值，不會覆蓋其他網站資料。
 
 「狀態面板」會顯示目前地圖、HP、MP 與掛機狀態；在遊戲頁面也可以使用 `Ctrl+Shift+L` 快速開關。面板只在開啟時更新資料，避免增加不必要的頁面負擔。userscript metadata 同時加入 `@updateURL` 與 `@downloadURL`，方便 Tampermonkey 自動檢查更新。
+
+「🛡️ 批次安定值」會從目前的 `__lh5_inv` 背包狀態找出武器與防具，以下拉選單顯示道具名稱、強化值、持有數量及實際背包 index。輸入批次數量後，程式會重新取得最新 index，依序每 350ms 送出一次 `enhanceSafeInv(index)`，避免背包 index 因頁面更新而失效。
 
 ### ⚙ 設定面板
 Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能。
@@ -80,7 +82,8 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 
 | 版本 | 說明 |
 |------|------|
-| v3.0.2（2.0 擴充版） | 新增 T 恤、鋼鐵長靴、鋼鐵手套三種批次製作配方選擇，並依 `craftItems` 動態辨識 recipeIdx。 |
+| v3.0.3（2.0 擴充版） | 新增 T 恤、鋼鐵長靴、鋼鐵手套三種批次製作配方選擇，並依 `craftItems` 動態辨識 recipeIdx。 |
+| v3.0.4 | 新增武器／防具批次安定值強化，支援道具名稱、強化值、持有數量與背包 index 選擇，逐件送出 `enhanceSafeInv(index)`。 |
 | v2.94 | 交易所金錢搜尋移除價格簡寫，修正排序邏輯兼容新版 DOM。 |
 
 | v2.87 | 📦 選角改直接送 `socket.emit('selectChar', slot)` 封包，取代 DOM 點擊 |
