@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.13
+// @version      3.0.14
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2846,7 +2846,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                         const detail = upgraded ? `成功，名稱重新定位，強化值 ${before} → ${upgraded.enchant}` : '失敗，道具消失或數量減少，允許下一件 index 前移';
                         lockedEnhanceDebug(upgraded ? 'SUCCESS' : 'FAILED_SHIFT', { batchId, oldIndex: found.index, newIndex: state.exact[0]?.index ?? null, beforeEnchant: before, afterEnchant: upgraded?.enchant ?? null, exactBefore: beforeState.exactTotal, exactAfter: state.exactTotal, higherBefore: beforeState.higherTotal, higherAfter: state.higherTotal, cell: getEnhanceCellSnapshot(state.exact[0]?.index ?? found.index) });
                         resolveEnhanceOperation(operation, status, detail);
-                        if (upgraded) lock.enchant = upgraded.enchant;
+                        // 保留下拉選取的原始強化值；成功升級後下一輪仍只找原本選取的分組，避免誤追 +7、+8。
                         completed++; timer = setTimeout(runOne, 350); return;
                     }
                     if (Date.now() - started > 8000) { lockedEnhanceDebug('TIMEOUT', { batchId, oldIndex: found.index, lock: {...lock}, exactTotal: state.exactTotal, higherTotal: state.higherTotal, item: getLiveInventoryItem(found.index), cell: getEnhanceCellSnapshot(found.index) }); resolveEnhanceOperation(operation, 'unknown', '等待同名道具數量或強化值更新逾時'); return stop('結果未知，已停止'); }
