@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.19
+// @version      3.0.20
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2917,7 +2917,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                         const indices = expandEnhanceIndices(current, count);
                         if (!indices.length) { alert('找不到可強化的背包 index。'); return; }
                         close();
-                        if (mode.value !== 'normal') { const batchId = 'enh-' + Date.now(); indices.forEach((index, order) => { const operation = queueEnhanceOperation(current, index, eventName, batchId); setTimeout(() => { operation.createdAt = Date.now(); operation.sent = true; craftEmit(eventName, index); console.log('[LH5] 🛡️ 安定值強化:', current.cat, current.name, 'index:', index, `${order + 1}/${indices.length}`); }, order * 350); }); }
+                        if (mode.value !== 'normal') { const batchId = 'enh-' + Date.now(); indices.forEach((index, order) => { const operation = queueEnhanceOperation(current, index, eventName, batchId); setTimeout(() => { operation.createdAt = Date.now(); operation.sent = true; craftEmit(eventName, index); console.log('[LH5] 🛡️ 安定值強化:', current.cat, current.name, 'index:', index, `${order + 1}/${indices.length}`); }, order * 1500); }); }
                         else { startLockedEnhance(lock, count, eventName, reason => console.log('[LH5] 🔒 鎖定名稱一般強化結束:', reason)); }
                     };
                     if (mode.value === 'normal') showEnhanceConfirm(`裝備：${current.cat === 'wpn' ? '武器' : '防具'}｜${current.name} +${current.enchant}\n強化數量：${count}\n規則：低於 Min +${minEnchant} 才強化\nMax：+${maxEnchant}\n封包：enhanceInv(index)\n\n取消或關閉不會送出封包。`, execute);
