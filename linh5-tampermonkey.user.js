@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.0
+// @version      3.0.1
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2429,9 +2429,9 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
 
             // emit 攔截
             const origEmit = socket.emit.bind(socket);
-            socket.emit = function(ev, data, cb) {
-                console.log('[LH5] 📤 emit:', ev, data !== undefined ? data : '');
-                return origEmit(ev, data, cb);
+            socket.emit = function(ev, ...args) {
+                console.log('[LH5] 📤 emit:', ev, ...args);
+                return origEmit(ev, ...args);
             };
 
             // lastState 輪詢（每 500ms 更新怪物血條）
@@ -2584,6 +2584,19 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             #${TOOLS_ID} button{flex:1;padding:5px 6px;border:1px solid #444;border-radius:5px;background:#2a2a3e;color:#e0d5c1;font-size:11px;cursor:pointer}
             #${TOOLS_ID} button:hover{background:#3a3a4e;border-color:#c8a96e}
             #lh5-v20-file{display:none}
+            #lh5-craft-modal{position:fixed;inset:0;z-index:1000000;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center}
+            #lh5-craft-modal.open{display:flex}
+            #lh5-craft-modal .lh5-craft-card{width:min(380px,calc(100vw - 32px));background:#1a1a2e;border:1px solid #c8a96e;border-radius:12px;padding:18px;color:#e0d5c1;box-shadow:0 8px 40px rgba(0,0,0,.65);font:13px/1.5 system-ui,sans-serif}
+            #lh5-craft-modal h3{margin:0 0 12px;color:#c8a96e;font-size:17px;display:flex;justify-content:space-between;align-items:center}
+            #lh5-craft-modal .lh5-craft-close{border:0;background:none;color:#ff7777;cursor:pointer;font-size:18px}
+            #lh5-craft-modal .lh5-craft-materials{margin:10px 0;padding:10px;background:#12121e;border-radius:8px;border:1px solid #2a2a3e}
+            #lh5-craft-modal .lh5-craft-material{display:flex;justify-content:space-between;border-bottom:1px solid #2a2a3e;padding:4px 0}
+            #lh5-craft-modal .lh5-craft-material:last-child{border-bottom:0}
+            #lh5-craft-modal .lh5-craft-input{width:100%;box-sizing:border-box;margin:5px 0 10px;padding:8px;background:#0d0d18;border:1px solid #444;border-radius:6px;color:#fff;font-size:14px}
+            #lh5-craft-modal .lh5-craft-actions{display:flex;gap:8px}
+            #lh5-craft-modal .lh5-craft-actions button{flex:1;padding:8px;border:0;border-radius:6px;cursor:pointer;font-weight:700}
+            #lh5-craft-modal .lh5-craft-submit{background:#c8a96e;color:#1a1a2e}
+            #lh5-craft-modal .lh5-craft-cancel{background:#3a3a4e;color:#e0d5c1}
         `);
 
         const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2628,13 +2641,67 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             };
             reader.readAsText(file);
         }
+        const TSHIRT_RECIPE = { npcId: 'npc_herbert', recipeIdx: 0, name: 'T恤', yield: 1, materials: [{ id: '50', need: 10, name: '白色布料' }, { id: '85', need: 3, name: '紅色布料' }, { id: '115', need: 2, name: '藍色布料' }, { id: '1106427', need: 30000, name: '金幣' }] };
+        let craftItemsBound = false;
+        function bindCraftItems() {
+            if (craftItemsBound) return;
+            try {
+                const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                const s = w.socket || (typeof socket !== 'undefined' ? socket : null);
+                if (!s || typeof s.on !== 'function') return;
+                s.on('craftItems', payload => {
+                    const recipes = Array.isArray(payload?.recipes) ? payload.recipes : [];
+                    const recipe = recipes.find(r => String(r.n || '').includes('T恤') || String(r.name || '').includes('T恤'));
+                    if (recipe && Number.isInteger(Number(recipe.idx))) {
+                        TSHIRT_RECIPE.recipeIdx = Number(recipe.idx);
+                        const label = document.querySelector('#lh5-craft-modal [data-craft-recipe="tshirt"]');
+                        const hint = document.querySelector('#lh5-craft-modal #lh5-craft-hint');
+                        if (label) label.dataset.recipeIdx = String(TSHIRT_RECIPE.recipeIdx);
+                        if (hint) hint.textContent = `將送出 craftAction npc_herbert ${TSHIRT_RECIPE.recipeIdx} 數量`;
+                        console.log('[LinH5] 🧵 已從 craftItems 辨識 T恤 recipeIdx:', TSHIRT_RECIPE.recipeIdx);
+                    }
+                });
+                craftItemsBound = true;
+            } catch (e) { console.warn('[LinH5] craftItems 監聽失敗', e); }
+        }
+        function craftEmit(event, ...args) {
+            try {
+                const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                if (w.socket && typeof w.socket.emit === 'function') return w.socket.emit(event, ...args);
+                if (typeof socket !== 'undefined' && socket && typeof socket.emit === 'function') return socket.emit(event, ...args);
+            } catch (e) { console.warn('[LinH5] craft emit 失敗', e); }
+            return false;
+        }
+        function openCraftModal() {
+            let modal = document.getElementById('lh5-craft-modal');
+            if (!modal) {
+                modal = document.createElement('div'); modal.id = 'lh5-craft-modal';
+                modal.innerHTML = `<div class="lh5-craft-card"><h3><span>🧵 批次製作</span><button class="lh5-craft-close" type="button">✕</button></h3><div style="color:#aaa">NPC：npc_herbert　配方：${TSHIRT_RECIPE.recipeIdx}</div><div style="margin-top:10px;font-weight:700;color:#fff">選擇配方</div><button type="button" data-craft-recipe="tshirt" style="width:100%;margin-top:5px;padding:8px;border:1px solid #c8a96e;border-radius:6px;background:#2a2a3e;color:#fff;cursor:pointer;text-align:left">T恤 <span style="float:right;color:#c8a96e">每次產出 ${TSHIRT_RECIPE.yield}</span></button><div class="lh5-craft-materials">${TSHIRT_RECIPE.materials.map(m => `<div class="lh5-craft-material"><span>${m.name} <small style="color:#777">(${m.id})</small></span><strong>${m.need}</strong></div>`).join('')}</div><label for="lh5-craft-qty">製作數量</label><input id="lh5-craft-qty" class="lh5-craft-input" type="number" min="1" max="9999" value="1" step="1"><div id="lh5-craft-hint" style="color:#888;font-size:12px;margin-bottom:10px">將送出 craftAction npc_herbert ${TSHIRT_RECIPE.recipeIdx} 數量</div><div class="lh5-craft-actions"><button type="button" class="lh5-craft-cancel">取消</button><button type="button" class="lh5-craft-submit">1 製作</button></div></div>`;
+                document.body.appendChild(modal);
+                const close = () => modal.classList.remove('open');
+                modal.querySelector('.lh5-craft-close').addEventListener('click', close);
+                modal.querySelector('.lh5-craft-cancel').addEventListener('click', close);
+                modal.addEventListener('click', e => { if (e.target === modal) close(); });
+                const qty = modal.querySelector('#lh5-craft-qty');
+                const submit = modal.querySelector('.lh5-craft-submit');
+                const hint = modal.querySelector('#lh5-craft-hint');
+                const update = () => { const n = Math.max(1, Math.min(9999, parseInt(qty.value, 10) || 1)); qty.value = n; submit.textContent = `${n} 製作`; hint.textContent = `將送出 craftAction npc_herbert ${TSHIRT_RECIPE.recipeIdx} ${n}`; };
+                qty.addEventListener('input', update);
+                submit.addEventListener('click', () => { update(); const n = Number(qty.value); craftEmit('craftAction', TSHIRT_RECIPE.npcId, TSHIRT_RECIPE.recipeIdx, n); console.log('[LinH5] 🧵 批次製作:', TSHIRT_RECIPE.name, '數量:', n); close(); });
+            }
+            bindCraftItems();
+            craftEmit('openCraft', TSHIRT_RECIPE.npcId);
+            modal.classList.add('open');
+            modal.querySelector('#lh5-craft-qty')?.focus();
+        }
         function injectTools() {
             const body = document.getElementById('lh5-modal-body'); if (!body || document.getElementById(TOOLS_ID)) return;
             const tools = document.createElement('div'); tools.id = TOOLS_ID;
-            tools.innerHTML = `<div class="lh5-v20-tool-title">🧰 2.0 工具</div><div class="lh5-v20-tool-row"><button type="button" data-v20-action="export">匯出設定</button><button type="button" data-v20-action="import">匯入設定</button><button type="button" data-v20-action="dashboard">狀態面板</button></div><input id="lh5-v20-file" type="file" accept="application/json">`;
+            tools.innerHTML = `<div class="lh5-v20-tool-title">🧰 2.0 工具</div><div class="lh5-v20-tool-row"><button type="button" data-v20-action="export">匯出設定</button><button type="button" data-v20-action="import">匯入設定</button><button type="button" data-v20-action="dashboard">狀態面板</button></div><div class="lh5-v20-tool-row" style="margin-top:6px"><button type="button" data-v20-action="craft">🧵 批次製作</button></div><input id="lh5-v20-file" type="file" accept="application/json">`;
             body.appendChild(tools);
             tools.querySelector('[data-v20-action="export"]').addEventListener('click', downloadProfile);
             tools.querySelector('[data-v20-action="dashboard"]').addEventListener('click', toggleDashboard);
+            tools.querySelector('[data-v20-action="craft"]').addEventListener('click', openCraftModal);
             const file = tools.querySelector('#lh5-v20-file');
             tools.querySelector('[data-v20-action="import"]').addEventListener('click', () => file.click());
             file.addEventListener('change', () => { if (file.files?.[0]) importProfile(file.files[0]); file.value = ''; });
