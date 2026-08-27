@@ -1,7 +1,9 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      2.94
+// @version      3.0.0
+// @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
+// @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
 // @author       QClaw
 // @match        https://linh5web.win/*
@@ -303,7 +305,7 @@
     const modal = document.createElement('div'); modal.id = 'lh5-modal';
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v2.87 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
+    modal.innerHTML = `<h2><span>⚙ 設定 <span style="font-size:11px;color:#666;font-weight:normal">v3.0.0 (${dateStr})</span></span><span id="lh5-modal-close-x">✕</span></h2><div id="lh5-modal-body"></div>`;
     overlay.appendChild(modal); document.body.appendChild(overlay);
 
     gearBtn.addEventListener('click', () => { renderSettings(); overlay.classList.add('open'); });
@@ -2559,6 +2561,88 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
         }
 
     }, 400);
+
+    // ============================================================
+    //  🚀 2.0 擴充：狀態儀表板、快捷鍵、設定匯出／匯入
+    // ============================================================
+    (function initV20Enhancements() {
+        const V20_PREFIX = 'lh5_';
+        const DASHBOARD_ID = 'lh5-v20-dashboard';
+        const TOOLS_ID = 'lh5-v20-tools';
+        const exportKeys = () => Object.keys(localStorage).filter(k => k.startsWith(V20_PREFIX));
+
+        GM_addStyle(`
+            #${DASHBOARD_ID}{position:fixed;right:12px;bottom:12px;z-index:99990;min-width:190px;padding:10px 12px;border:1px solid rgba(200,169,110,.7);border-radius:10px;background:rgba(18,18,30,.94);box-shadow:0 5px 22px rgba(0,0,0,.35);color:#e0d5c1;font:12px/1.55 system-ui,sans-serif;display:none;backdrop-filter:blur(5px)}
+            #${DASHBOARD_ID}.open{display:block}
+            #${DASHBOARD_ID} .lh5-v20-head{display:flex;justify-content:space-between;align-items:center;color:#c8a96e;font-weight:700;margin-bottom:5px}
+            #${DASHBOARD_ID} .lh5-v20-close{border:0;background:none;color:#888;cursor:pointer;font-size:14px}
+            #${DASHBOARD_ID} .lh5-v20-row{display:flex;justify-content:space-between;gap:14px;border-top:1px solid #2a2a3e;padding:3px 0}
+            #${DASHBOARD_ID} .lh5-v20-value{color:#fff;font-variant-numeric:tabular-nums;text-align:right}
+            #${TOOLS_ID}{margin-top:12px;padding-top:10px;border-top:1px solid #333}
+            #${TOOLS_ID} .lh5-v20-tool-title{font-size:12px;color:#c8a96e;margin-bottom:6px}
+            #${TOOLS_ID} .lh5-v20-tool-row{display:flex;gap:6px}
+            #${TOOLS_ID} button{flex:1;padding:5px 6px;border:1px solid #444;border-radius:5px;background:#2a2a3e;color:#e0d5c1;font-size:11px;cursor:pointer}
+            #${TOOLS_ID} button:hover{background:#3a3a4e;border-color:#c8a96e}
+            #lh5-v20-file{display:none}
+        `);
+
+        const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        function readChar() {
+            try { const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window; return w.__lh5_char || {}; } catch (_) { return {}; }
+        }
+        function getZone() { return document.getElementById('zone-name')?.textContent?.trim() || '未進入地圖'; }
+        function farmStatus() { return autoFarmFeature?.isRunning?.() ? '運行中' : '已停止'; }
+        function createDashboard() {
+            let el = document.getElementById(DASHBOARD_ID);
+            if (el) return el;
+            el = document.createElement('div'); el.id = DASHBOARD_ID;
+            el.innerHTML = `<div class="lh5-v20-head"><span>📊 LinH5 2.0 狀態</span><button class="lh5-v20-close" title="關閉">✕</button></div><div class="lh5-v20-row"><span>地圖</span><span class="lh5-v20-value" data-v20="zone">-</span></div><div class="lh5-v20-row"><span>HP</span><span class="lh5-v20-value" data-v20="hp">-</span></div><div class="lh5-v20-row"><span>MP</span><span class="lh5-v20-value" data-v20="mp">-</span></div><div class="lh5-v20-row"><span>掛機</span><span class="lh5-v20-value" data-v20="farm">-</span></div><div class="lh5-v20-row"><span>快捷鍵</span><span class="lh5-v20-value">Ctrl+Shift+L</span></div>`;
+            el.querySelector('.lh5-v20-close').addEventListener('click', () => el.classList.remove('open'));
+            document.body.appendChild(el); return el;
+        }
+        function updateDashboard() {
+            const el = document.getElementById(DASHBOARD_ID); if (!el?.classList.contains('open')) return;
+            const c = readChar();
+            const ratio = (v, max) => v !== undefined && max > 0 ? `${Math.round(v / max * 100)}% (${v}/${max})` : '-';
+            el.querySelector('[data-v20="zone"]').textContent = getZone();
+            el.querySelector('[data-v20="hp"]').textContent = ratio(c.hp, c.maxHp);
+            el.querySelector('[data-v20="mp"]').textContent = ratio(c.mp, c.maxMp);
+            el.querySelector('[data-v20="farm"]').textContent = farmStatus();
+        }
+        function toggleDashboard() { const el = createDashboard(); el.classList.toggle('open'); updateDashboard(); }
+        function downloadProfile() {
+            const data = { schema: 'linh5-tampermonkey-profile', version: '3.0.0', exportedAt: new Date().toISOString(), settings: loadSettings(), localStorage: Object.fromEntries(exportKeys().map(k => [k, localStorage.getItem(k)])) };
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `linh5-profile-${new Date().toISOString().slice(0,10)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }
+        function importProfile(file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const data = JSON.parse(reader.result);
+                    if (!data || data.schema !== 'linh5-tampermonkey-profile' || !data.localStorage || typeof data.localStorage !== 'object') throw new Error('格式不正確');
+                    Object.entries(data.localStorage).forEach(([key, value]) => { if (key.startsWith(V20_PREFIX) && typeof value === 'string') localStorage.setItem(key, value); });
+                    if (data.settings && typeof data.settings === 'object') saveSettings({...loadSettings(), ...data.settings});
+                    alert('設定匯入完成，重新整理頁面後生效。');
+                } catch (e) { alert('設定匯入失敗：' + e.message); }
+            };
+            reader.readAsText(file);
+        }
+        function injectTools() {
+            const body = document.getElementById('lh5-modal-body'); if (!body || document.getElementById(TOOLS_ID)) return;
+            const tools = document.createElement('div'); tools.id = TOOLS_ID;
+            tools.innerHTML = `<div class="lh5-v20-tool-title">🧰 2.0 工具</div><div class="lh5-v20-tool-row"><button type="button" data-v20-action="export">匯出設定</button><button type="button" data-v20-action="import">匯入設定</button><button type="button" data-v20-action="dashboard">狀態面板</button></div><input id="lh5-v20-file" type="file" accept="application/json">`;
+            body.appendChild(tools);
+            tools.querySelector('[data-v20-action="export"]').addEventListener('click', downloadProfile);
+            tools.querySelector('[data-v20-action="dashboard"]').addEventListener('click', toggleDashboard);
+            const file = tools.querySelector('#lh5-v20-file');
+            tools.querySelector('[data-v20-action="import"]').addEventListener('click', () => file.click());
+            file.addEventListener('change', () => { if (file.files?.[0]) importProfile(file.files[0]); file.value = ''; });
+        }
+        document.addEventListener('keydown', e => { if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'l') { e.preventDefault(); toggleDashboard(); } });
+        setInterval(() => { injectTools(); updateDashboard(); }, 1000);
+        console.log('[LinH5] ✅ 2.0 擴充模組已啟動：Ctrl+Shift+L 開啟狀態面板');
+    })();
 
     // ============================================================
     //  📋 回大廳歷史清單 Modal
