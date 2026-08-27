@@ -1,6 +1,6 @@
 # LinH5 工具箱 - Tampermonkey Userscript
 
-> **目前版本：v3.0.6（2.0 擴充版）**
+> **目前版本：v3.0.7（2.0 擴充版）**
 
 一個專為 [LinH5 放置天堂 · 即時版](https://linh5web.win/) 設計的 Tampermonkey 增強腳本。
 
@@ -19,11 +19,11 @@
 
 ### 🚀 2.0 擴充功能
 
-v3.0.6 在既有功能之外加入一組低耦合的工具層。開啟右上角設定面板後，可以使用「匯出設定」將 `lh5_` 開頭的 localStorage 設定與 Tampermonkey 設定保存為 JSON；使用「匯入設定」可在重新安裝瀏覽器或更換裝置後恢復設定。匯入時只接受本工具產生的資料格式，且只寫入 `lh5_` 前綴的鍵值，不會覆蓋其他網站資料。
+v3.0.7 在既有功能之外加入一組低耦合的工具層。開啟右上角設定面板後，可以使用「匯出設定」將 `lh5_` 開頭的 localStorage 設定與 Tampermonkey 設定保存為 JSON；使用「匯入設定」可在重新安裝瀏覽器或更換裝置後恢復設定。匯入時只接受本工具產生的資料格式，且只寫入 `lh5_` 前綴的鍵值，不會覆蓋其他網站資料。
 
 「狀態面板」會顯示目前地圖、HP、MP 與掛機狀態；在遊戲頁面也可以使用 `Ctrl+Shift+L` 快速開關。面板只在開啟時更新資料，避免增加不必要的頁面負擔。userscript metadata 同時加入 `@updateURL` 與 `@downloadURL`，方便 Tampermonkey 自動檢查更新。
 
-「🛡️ 批次安定值」會從目前的背包 DOM 只掃描 `.subtab[data-c="wpn"]` 武器分頁與 `.subtab[data-c="arm"]` 防具分頁，並以該分頁內的 `.cell[data-i]` 作為實際背包 index；`.cnt` 作為持有數量。資料會依分頁、道具名稱與強化值分組，以下拉選單顯示。輸入批次數量後，程式會先切換到該道具所屬分頁，再依序每 350ms 送出一次 `enhanceSafeInv(index)`。
+「🛡️ 批次安定值」會從目前的背包 DOM 只掃描 `.subtab[data-c="wpn"]` 武器分頁與 `.subtab[data-c="arm"]` 防具分頁，並以該分頁內的 `.cell[data-i]` 作為實際背包 index；`.cnt` 作為持有數量。資料會依分頁、道具名稱與強化值分組，以下拉選單顯示。輸入批次數量後，程式會先切換到該道具所屬分頁，再依序每 350ms 送出一次封包。模式選擇「安定值強化」時送出 `enhanceSafeInv(index)`；選擇「一般強化」時送出 `enhanceInv(index)`。
 
 ### ⚙ 設定面板
 Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能。
@@ -86,6 +86,7 @@ Topbar 右側 ⚙ 齒輪按鈕 → 開啟設定 Modal，可用開關切換功能
 | v3.0.4 | 新增武器／防具批次安定值強化，支援道具名稱、強化值、持有數量與背包 index 選擇，逐件送出 `enhanceSafeInv(index)`。 |
 | v3.0.5 | 修正批次安定值只掃描武器／防具兩個 subtab，依 `.cell[data-i]` 與 `.cnt` 分組，執行前切換對應分頁。 |
 | v3.0.6 | 批次安定值下拉選單改依武器／防具的 data-i 數字順序排列，例如 0、1、13。 |
+| v3.0.7 | 新增一般強化模式，依選取道具與批次數量逐件送出 `enhanceInv(index)`；安定值模式維持 `enhanceSafeInv(index)`。 |
 | v2.94 | 交易所金錢搜尋移除價格簡寫，修正排序邏輯兼容新版 DOM。 |
 
 | v2.87 | 📦 選角改直接送 `socket.emit('selectChar', slot)` 封包，取代 DOM 點擊 |
