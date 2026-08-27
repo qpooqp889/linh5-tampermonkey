@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.9
+// @version      3.0.10
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2885,15 +2885,27 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             const summary = modal.querySelector('[data-enhance-summary]');
             if (summary) summary.textContent = `總筆數 ${s.total}｜成功 ${s.success}｜失敗 ${s.failed}｜未知 ${s.unknown}｜處理中 ${s.pending}｜已判定成功率 ${s.rate}%`;
         }
+        function csvEscape(value) { const text = String(value ?? ''); return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text; }
+        function exportEnhanceCsv() {
+            const rows = getEnhanceLog();
+            const headers = ['batchId', 'time', 'category', 'itemName', 'mode', 'index', 'beforeEnchant', 'afterEnchant', 'status', 'detail'];
+            const csvRows = [headers, ...rows.map(r => [r.batchId, r.time, r.cat === 'wpn' ? '武器' : r.cat === 'arm' ? '防具' : r.cat, r.name, r.event === 'enhanceInv' ? '一般強化' : '安定值強化', r.index, r.before, r.after, r.status === 'success' ? '成功' : r.status === 'failed' ? '失敗' : r.status === 'unknown' ? '未知' : r.status, r.detail])];
+            const csv = '\ufeff' + csvRows.map(row => row.map(csvEscape).join(',')).join('\r\n') + '\r\n';
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob); const a = document.createElement('a');
+            a.href = url; a.download = `linh5-enhance-log-${new Date().toISOString().slice(0, 10)}.csv`; document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
         function showEnhanceStatsModal() {
             let modal = document.getElementById('lh5-enhance-stats-modal');
             if (!modal) {
                 modal = document.createElement('div'); modal.id = 'lh5-enhance-stats-modal'; modal.className = 'lh5-enhance-stats-modal';
-                modal.innerHTML = `<div class="lh5-enhance-stats-card"><h3><span>📊 強化記錄與成功率</span><button type="button" class="lh5-enhance-stats-close">✕</button></h3><div data-enhance-summary style="color:#c8a96e;font-size:12px;margin-bottom:8px"></div><div class="lh5-enhance-stats-table-wrap"><table><thead><tr><th>時間</th><th>道具</th><th>模式</th><th>index</th><th>結果</th></tr></thead><tbody data-enhance-rows></tbody></table></div><div class="lh5-enhance-stats-actions"><button type="button" data-enhance-clear>清除記錄</button><button type="button" class="lh5-enhance-stats-close">關閉</button></div></div>`;
+                modal.innerHTML = `<div class="lh5-enhance-stats-card"><h3><span>📊 強化記錄與成功率</span><button type="button" class="lh5-enhance-stats-close">✕</button></h3><div data-enhance-summary style="color:#c8a96e;font-size:12px;margin-bottom:8px"></div><div class="lh5-enhance-stats-table-wrap"><table><thead><tr><th>時間</th><th>道具</th><th>模式</th><th>index</th><th>結果</th></tr></thead><tbody data-enhance-rows></tbody></table></div><div class="lh5-enhance-stats-actions"><button type="button" data-enhance-export>匯出 CSV</button><button type="button" data-enhance-clear>清除記錄</button><button type="button" class="lh5-enhance-stats-close">關閉</button></div></div>`;
                 document.body.appendChild(modal);
                 const close = () => modal.classList.remove('open');
                 modal.querySelectorAll('.lh5-enhance-stats-close').forEach(b => b.addEventListener('click', close));
                 modal.addEventListener('click', e => { if (e.target === modal) close(); });
+                modal.querySelector('[data-enhance-export]').addEventListener('click', exportEnhanceCsv);
                 modal.querySelector('[data-enhance-clear]').addEventListener('click', () => { if (confirm('確定清除強化記錄？')) { localStorage.removeItem(ENHANCE_LOG_KEY); renderEnhanceStatsRows(); updateEnhanceStatsModal(); } });
             }
             renderEnhanceStatsRows(); updateEnhanceStatsModal(); modal.classList.add('open');
