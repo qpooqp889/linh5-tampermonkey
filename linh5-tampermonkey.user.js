@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.29
+// @version      3.0.30
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2826,7 +2826,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             const state = getLockedEnhanceState(lock);
             return state.eligible.slice().sort((a, b) => a.enchant - b.enchant || a.index - b.index)[0] || null;
         }
-        function startLockedEnhance(lock, total, eventName, onDone) {
+        function startLockedEnhance(lock, total, eventName, onDone, intervalMs = 350) {
             const batchId = 'enh-lock-' + Date.now(); let completed = 0; let stopped = false; let timer = null; let lastCheckLog = 0;
             if (enhanceProgressState) enhanceProgressState.batchId = batchId;
             lockedEnhanceDebug('START', { batchId, lock: {...lock}, total, eventName, rule: '只處理下拉選取名稱與強化值分組' });
@@ -2850,6 +2850,16 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                 const check = () => {
                     if (stopped) return;
                     const state = getLockedEnhanceState(lock);
+                    const toastNow = getEnhanceToastSnapshot();
+                    const toastChanged = toastNow.text !== operation.toastBefore.text || toastNow.html !== operation.toastBefore.html;
+                    const toastResult = toastChanged ? parseEnhanceToast(toastNow.text) : null;
+                    if (toastResult && Date.now() - started > 250) {
+                        lockedEnhanceDebug('TOAST', { batchId, oldIndex: found.index, result: toastResult, toast: toastNow });
+                        resolveEnhanceOperation(operation, toastResult.status, toastResult.detail);
+                        completed++;
+                        if (toastResult.status === 'failed') { timer = setTimeout(runOne, intervalMs); return; }
+                        timer = setTimeout(runOne, intervalMs); return;
+                    }
                     if (Date.now() - lastCheckLog > 1000) { lastCheckLog = Date.now(); lockedEnhanceDebug('CHECK', { batchId, oldIndex: found.index, lock: {...lock}, eligibleTotal: state.eligibleTotal, total: state.total, eligibleIndices: state.eligible.map(x => x.index), item: getLiveInventoryItem(found.index), cell: getEnhanceCellSnapshot(found.index) }); }
                     // 只有鎖定的 targetEnchant 數量減少才進入下一輪，避免同 index 的其他強化值被誤判。
                     if (state.eligibleTotal < beforeState.eligibleTotal) {
@@ -2858,7 +2868,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                         const detail = upgraded ? `成功，強化值 ${before} → ${upgraded.enchant}，下一輪只重新掃描 +${lock.targetEnchant} 的同名裝備` : (state.total < beforeState.total ? '強化消失，下一輪重新掃描最新 index' : `強化前後同為 +${before}，維持不變`);
                         lockedEnhanceDebug(upgraded ? 'SUCCESS' : 'FAILED_SHIFT', { batchId, oldIndex: found.index, newIndex: state.eligible[0]?.index ?? null, beforeEnchant: before, afterEnchant: upgraded?.enchant ?? null, eligibleBefore: beforeState.eligibleTotal, eligibleAfter: state.eligibleTotal, totalBefore: beforeState.total, totalAfter: state.total, cell: getEnhanceCellSnapshot(state.eligible[0]?.index ?? found.index) });
                         resolveEnhanceOperation(operation, status, detail);
-                        completed++; timer = setTimeout(runOne, 350); return;
+                        completed++; timer = setTimeout(runOne, intervalMs); return;
                     }
                     if (Date.now() - started > 8000) { lockedEnhanceDebug('TIMEOUT', { batchId, oldIndex: found.index, lock: {...lock}, targetEnchant: lock.targetEnchant, eligibleTotal: state.eligibleTotal, total: state.total, item: getLiveInventoryItem(found.index), cell: getEnhanceCellSnapshot(found.index) }); resolveEnhanceOperation(operation, 'failed', '維持不變'); return stop('強化結果維持不變，已停止'); }
                     timer = setTimeout(check, 300);
@@ -2922,7 +2932,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                         if (!indices.length) { alert('找不到可強化的背包 index。'); return; }
                         // 開始後保留同一個 Modal；右上角 X 只隱藏視窗，不停止批次。
                         beginEnhanceProgress(current, eventName, indices.length, stopEnchant);
-                        if (mode.value !== 'normal') { const batchId = 'enh-' + Date.now(); enhanceProgressState.batchId = batchId; enhanceProgressState.cancel = () => { enhanceProgressState.cancelled = true; enhanceProgressState.timerIds.forEach(clearTimeout); enhanceProgressState.timerIds = []; }; indices.forEach((index, order) => { const operation = queueEnhanceOperation(current, index, eventName, batchId); const timerId = setTimeout(() => { if (enhanceProgressState.cancelled) return; operation.createdAt = Date.now(); operation.sent = true; enhanceProgressState.sent++; enhanceProgressState.current = { name: current.name, index }; renderEnhanceProgress(); craftEmit(eventName, index); console.log('[LH5] 🛡️ 安定值強化:', current.cat, current.name, 'index:', index, `${order + 1}/${indices.length}`); }, order * 1500); enhanceProgressState.timerIds.push(timerId); }); }
+                        if (mode.value !== 'normal') { startLockedEnhance(lock, count, eventName, reason => console.log('[LH5] 🛡️ 安定值強化結束:', reason), 1500); }
                         else { startLockedEnhance(lock, count, eventName, reason => console.log('[LH5] 🔒 鎖定名稱一般強化結束:', reason)); }
                     };
                     if (mode.value === 'normal') showEnhanceConfirm(`裝備：${current.cat === 'wpn' ? '武器' : '防具'}｜${current.name} +${current.enchant}\n強化數量：${count}\n規則：達到 +${stopEnchant} 後停止\n封包：enhanceInv(index)\n\n取消或關閉不會送出封包。`, execute);
@@ -2980,9 +2990,23 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
         function getLiveInventoryItem(index) {
             try { const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window; return Array.isArray(w.__lh5_inv) ? w.__lh5_inv[index] : null; } catch (_) { return null; }
         }
+        function getEnhanceToastSnapshot() {
+            const toast = document.getElementById('toast');
+            if (!toast) return { text: '', html: '' };
+            return { text: String(toast.textContent || '').replace(/\s+/g, ' ').trim(), html: String(toast.innerHTML || '') };
+        }
+        function parseEnhanceToast(text) {
+            const value = String(text || '').replace(/\s+/g, ' ').trim();
+            if (!value) return null;
+            if (/強化失敗.{0,20}道具已破壞|道具已破壞/.test(value)) return { status: 'failed', detail: '強化失敗，道具已破壞！' };
+            const match = value.match(/獲得狀態[：:]\s*(.+)$/);
+            if (match) return { status: 'success', detail: match[0], resultName: match[1].trim() };
+            return null;
+        }
         function queueEnhanceOperation(current, index, eventName, batchId) {
-            const before = getLiveInventoryItem(index);
-            const op = { index, eventName, batchId, name: current.name, cat: current.cat, beforeEnchant: Number(before?.en || 0), createdAt: 0, sent: false }; enhancePending.push(op); return op;
+            const before = getLiveInventoryItem(index); const toast = getEnhanceToastSnapshot();
+            const op = { index, eventName, batchId, name: current.name, cat: current.cat, beforeEnchant: Number(before?.en || 0), createdAt: 0, sent: false, toastBefore: toast, toastAfter: null };
+            enhancePending.push(op); return op;
         }
         function resolveEnhanceOperation(op, status, detail) {
             const idx = enhancePending.indexOf(op); if (idx >= 0) enhancePending.splice(idx, 1);
@@ -2997,7 +3021,9 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             const now = Date.now();
             for (let i = enhancePending.length - 1; i >= 0; i--) {
                 const op = enhancePending[i]; if (!op.sent) continue; const item = getLiveInventoryItem(op.index);
-                if (item && Number(item.en || 0) > op.beforeEnchant) resolveEnhanceOperation(op, 'success', '強化值上升');
+                const toast = getEnhanceToastSnapshot(); const toastChanged = toast.text !== op.toastBefore.text || toast.html !== op.toastBefore.html;
+                if (toastChanged) { const result = parseEnhanceToast(toast.text); if (result) { op.toastAfter = toast; resolveEnhanceOperation(op, result.status, result.detail); continue; } }
+                else if (item && Number(item.en || 0) > op.beforeEnchant) resolveEnhanceOperation(op, 'success', '強化值上升');
                 else if (!item && now - op.createdAt > 2500) resolveEnhanceOperation(op, 'failed', '強化消失');
                 else if (now - op.createdAt > 8000) resolveEnhanceOperation(op, 'failed', '維持不變');
             }
