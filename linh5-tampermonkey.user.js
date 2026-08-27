@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.23
+// @version      3.0.25
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2831,6 +2831,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             const stop = (reason) => { stopped = true; if (timer) clearTimeout(timer); console.warn('[LH5] 🔒 鎖定名稱強化停止:', reason); lockedEnhanceDebug('STOP', { batchId, reason, completed, total, lock: {...lock} }); if (enhanceProgressState && enhanceProgressState.batchId === batchId && completed < total) finishEnhanceProgress(reason); onDone?.(reason); };
             const runOne = () => {
                 if (stopped || completed >= total) { if (!stopped) { finishEnhanceProgress('全部完成'); onDone?.('completed'); } return; }
+                // 每輪重新掃描武器／防具分頁與下拉選取的道具名稱；已達停止值的分組不會再被選中。
                 const beforeState = getLockedEnhanceState(lock);
                 const found = beforeState.eligible.slice().sort((a, b) => a.enchant - b.enchant || a.index - b.index)[0];
                 if (!found) return stop(`找不到低於停止值 +${lock.stopEnchant} 的「${lock.name}」剩餘道具，已完成 ${completed}/${total}`);
@@ -2850,7 +2851,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                     if (state.eligibleTotal < beforeState.eligibleTotal || state.total < beforeState.total) {
                         const upgraded = state.entries.filter(x => x.name === lock.name && x.enchant > before).sort((a, b) => a.enchant - b.enchant || a.index - b.index)[0] || null;
                         const status = upgraded ? 'success' : 'failed';
-                        const detail = upgraded ? `成功，強化值 ${before} → ${upgraded.enchant}，下一輪重新找低於 +${lock.stopEnchant} 的同名裝備` : '失敗，道具消失或數量減少，允許下一件 index 前移';
+                        const detail = upgraded ? `成功，強化值 ${before} → ${upgraded.enchant}，下一輪重新掃描低於 +${lock.stopEnchant} 的同名裝備` : (state.total < beforeState.total ? '強化消失，下一輪重新掃描最新 index' : '維持不變');
                         lockedEnhanceDebug(upgraded ? 'SUCCESS' : 'FAILED_SHIFT', { batchId, oldIndex: found.index, newIndex: state.eligible[0]?.index ?? null, beforeEnchant: before, afterEnchant: upgraded?.enchant ?? null, eligibleBefore: beforeState.eligibleTotal, eligibleAfter: state.eligibleTotal, totalBefore: beforeState.total, totalAfter: state.total, cell: getEnhanceCellSnapshot(state.eligible[0]?.index ?? found.index) });
                         resolveEnhanceOperation(operation, status, detail);
                         completed++; timer = setTimeout(runOne, 350); return;
@@ -2872,7 +2873,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             card.querySelector('[data-confirm-detail]').textContent = detail;
             card.querySelector('[data-confirm-close]').onclick = restore;
             card.querySelector('[data-confirm-cancel]').onclick = restore;
-            card.querySelector('[data-confirm-start]').onclick = () => { modal.classList.remove('open'); onConfirm(); };
+            card.querySelector('[data-confirm-start]').onclick = () => { onConfirm(); };
         }
         function openEnhanceModal() {
             let modal = document.getElementById('lh5-enhance-modal');
@@ -2915,6 +2916,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                         switchEnhanceTab(current.cat);
                         const indices = expandEnhanceIndices(current, count);
                         if (!indices.length) { alert('找不到可強化的背包 index。'); return; }
+                        // 開始後保留同一個 Modal；右上角 X 只隱藏視窗，不停止批次。
                         beginEnhanceProgress(current, eventName, indices.length, stopEnchant);
                         if (mode.value !== 'normal') { const batchId = 'enh-' + Date.now(); enhanceProgressState.batchId = batchId; indices.forEach((index, order) => { const operation = queueEnhanceOperation(current, index, eventName, batchId); setTimeout(() => { operation.createdAt = Date.now(); operation.sent = true; enhanceProgressState.sent++; enhanceProgressState.current = { name: current.name, index }; renderEnhanceProgress(); craftEmit(eventName, index); console.log('[LH5] 🛡️ 安定值強化:', current.cat, current.name, 'index:', index, `${order + 1}/${indices.length}`); }, order * 1500); }); }
                         else { startLockedEnhance(lock, count, eventName, reason => console.log('[LH5] 🔒 鎖定名稱一般強化結束:', reason)); }
