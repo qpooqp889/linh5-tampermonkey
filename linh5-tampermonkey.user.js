@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.21
+// @version      3.0.22
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2803,55 +2803,57 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
         function getEnhanceCellSnapshot(index) {
             try { return [...document.querySelectorAll(`.cell[data-i="${index}"]`)].map(cell => cell.outerHTML.slice(0, 500)); } catch (_) { return []; }
         }
+        const ENHANCE_STOP_KEY = 'lh5_enhance_stop_values';
+        function getEnhanceStopValues() {
+            try { const raw = JSON.parse(localStorage.getItem(ENHANCE_STOP_KEY) || '{}'); return { wpn: Number.isInteger(raw.wpn) ? raw.wpn : 7, arm: Number.isInteger(raw.arm) ? raw.arm : 5 }; } catch (_) { return { wpn: 7, arm: 5 }; }
+        }
+        function saveEnhanceStopValue(cat, value) { const values = getEnhanceStopValues(); values[cat] = value; localStorage.setItem(ENHANCE_STOP_KEY, JSON.stringify(values)); }
         function getLockedEnhanceState(lock) {
             const entries = getEnhanceInventory(lock.cat).filter(x => x.name === lock.name);
-            const exact = entries.filter(x => x.enchant === lock.enchant);
-            const higher = entries.filter(x => x.enchant > lock.enchant);
+            const eligible = entries.filter(x => x.enchant < lock.stopEnchant);
+            const higher = entries.filter(x => x.enchant > lock.currentEnchant);
             return {
                 entries,
-                exactTotal: exact.reduce((sum, x) => sum + x.count, 0),
-                higherTotal: higher.reduce((sum, x) => sum + x.count, 0),
-                exact,
-                higher
+                eligible,
+                eligibleTotal: eligible.reduce((sum, x) => sum + x.count, 0),
+                total: entries.reduce((sum, x) => sum + x.count, 0),
+                higherTotal: higher.reduce((sum, x) => sum + x.count, 0)
             };
         }
         function findLockedEnhanceEntry(lock) {
             const state = getLockedEnhanceState(lock);
-            return state.exact.slice().sort((a, b) => a.index - b.index)[0] || null;
+            return state.eligible.slice().sort((a, b) => a.enchant - b.enchant || a.index - b.index)[0] || null;
         }
         function startLockedEnhance(lock, total, eventName, onDone) {
             const batchId = 'enh-lock-' + Date.now(); let completed = 0; let stopped = false; let timer = null; let lastCheckLog = 0;
-            lockedEnhanceDebug('START', { batchId, lock: {...lock}, total, eventName, rule: '每次以同名道具數量變化判定，允許 index 前移' });
+            lockedEnhanceDebug('START', { batchId, lock: {...lock}, total, eventName, rule: '只處理下拉選取名稱，低於停止值才強化' });
             const stop = (reason) => { stopped = true; if (timer) clearTimeout(timer); console.warn('[LH5] 🔒 鎖定名稱強化停止:', reason); lockedEnhanceDebug('STOP', { batchId, reason, completed, total, lock: {...lock} }); onDone?.(reason); };
             const runOne = () => {
                 if (stopped || completed >= total) { if (!stopped) onDone?.('completed'); return; }
                 const beforeState = getLockedEnhanceState(lock);
-                if (lock.enchant >= lock.minEnchant && lock.enchant <= lock.maxEnchant) return stop(`下拉選取的 +${lock.enchant} 已在 Min +${lock.minEnchant}～Max +${lock.maxEnchant} 範圍，不再強化`);
-                if (lock.enchant > lock.maxEnchant) return stop(`下拉選取的 +${lock.enchant} 已超過 Max +${lock.maxEnchant}，不再強化`);
-                const found = beforeState.exact.slice().sort((a, b) => a.index - b.index)[0];
-                if (!found) return stop(`找不到「${lock.name} +${lock.enchant}」剩餘道具，已完成 ${completed}/${total}`);
-                lockedEnhanceDebug('FOUND', { batchId, cat: lock.cat, name: lock.name, lockedEnchant: lock.enchant, index: found.index, exactTotal: beforeState.exactTotal, higherTotal: beforeState.higherTotal, item: found.item, cell: getEnhanceCellSnapshot(found.index) });
+                const found = beforeState.eligible.slice().sort((a, b) => a.enchant - b.enchant || a.index - b.index)[0];
+                if (!found) return stop(`找不到低於停止值 +${lock.stopEnchant} 的「${lock.name}」剩餘道具，已完成 ${completed}/${total}`);
+                lockedEnhanceDebug('FOUND', { batchId, cat: lock.cat, name: lock.name, stopEnchant: lock.stopEnchant, currentEnchant: found.enchant, index: found.index, eligibleTotal: beforeState.eligibleTotal, item: found.item, cell: getEnhanceCellSnapshot(found.index) });
                 switchEnhanceTab(lock.cat);
-                const before = Number(found.item?.en || found.enchant || lock.enchant); const operation = queueEnhanceOperation({ name: lock.name, cat: lock.cat }, found.index, eventName, batchId);
-                operation.createdAt = Date.now(); operation.sent = true; operation.lockedName = lock.name; operation.lockedEnchant = lock.enchant;
-                lockedEnhanceDebug('EMIT', { batchId, event: eventName, index: found.index, cat: lock.cat, name: lock.name, beforeEnchant: before, beforeState: { exactTotal: beforeState.exactTotal, higherTotal: beforeState.higherTotal }, item: getLiveInventoryItem(found.index), cell: getEnhanceCellSnapshot(found.index) });
+                const before = Number(found.item?.en || found.enchant || 0); const operation = queueEnhanceOperation({ name: lock.name, cat: lock.cat }, found.index, eventName, batchId);
+                operation.createdAt = Date.now(); operation.sent = true; operation.lockedName = lock.name; operation.stopEnchant = lock.stopEnchant;
+                lockedEnhanceDebug('EMIT', { batchId, event: eventName, index: found.index, cat: lock.cat, name: lock.name, beforeEnchant: before, stopEnchant: lock.stopEnchant, beforeState: { eligibleTotal: beforeState.eligibleTotal, total: beforeState.total }, item: getLiveInventoryItem(found.index), cell: getEnhanceCellSnapshot(found.index) });
                 craftEmit(eventName, found.index);
-                console.log('[LH5] 🔒 鎖定名稱強化:', lock.name, `+${before}`, 'index:', found.index, `${completed + 1}/${total}`);
+                console.log('[LH5] 🔒 停止值強化:', lock.name, `+${before}`, 'index:', found.index, `停止 +${lock.stopEnchant}`, `${completed + 1}/${total}`);
                 const started = Date.now();
                 const check = () => {
                     if (stopped) return;
                     const state = getLockedEnhanceState(lock);
-                    if (Date.now() - lastCheckLog > 1000) { lastCheckLog = Date.now(); lockedEnhanceDebug('CHECK', { batchId, oldIndex: found.index, lock: {...lock}, exactTotal: state.exactTotal, higherTotal: state.higherTotal, exactIndices: state.exact.map(x => x.index), higherIndices: state.higher.map(x => x.index), item: getLiveInventoryItem(found.index), cell: getEnhanceCellSnapshot(found.index) }); }
-                    if (state.exactTotal < beforeState.exactTotal) {
-                        const upgraded = state.higherTotal > beforeState.higherTotal ? state.higher.slice().sort((a, b) => a.enchant - b.enchant || a.index - b.index)[0] : null;
+                    if (Date.now() - lastCheckLog > 1000) { lastCheckLog = Date.now(); lockedEnhanceDebug('CHECK', { batchId, oldIndex: found.index, lock: {...lock}, eligibleTotal: state.eligibleTotal, total: state.total, eligibleIndices: state.eligible.map(x => x.index), item: getLiveInventoryItem(found.index), cell: getEnhanceCellSnapshot(found.index) }); }
+                    if (state.eligibleTotal < beforeState.eligibleTotal || state.total < beforeState.total) {
+                        const upgraded = state.entries.filter(x => x.name === lock.name && x.enchant > before).sort((a, b) => a.enchant - b.enchant || a.index - b.index)[0] || null;
                         const status = upgraded ? 'success' : 'failed';
-                        const detail = upgraded ? `成功，名稱重新定位，強化值 ${before} → ${upgraded.enchant}` : '失敗，道具消失或數量減少，允許下一件 index 前移';
-                        lockedEnhanceDebug(upgraded ? 'SUCCESS' : 'FAILED_SHIFT', { batchId, oldIndex: found.index, newIndex: state.exact[0]?.index ?? null, beforeEnchant: before, afterEnchant: upgraded?.enchant ?? null, exactBefore: beforeState.exactTotal, exactAfter: state.exactTotal, higherBefore: beforeState.higherTotal, higherAfter: state.higherTotal, cell: getEnhanceCellSnapshot(state.exact[0]?.index ?? found.index) });
+                        const detail = upgraded ? `成功，強化值 ${before} → ${upgraded.enchant}，下一輪重新找低於 +${lock.stopEnchant} 的同名裝備` : '失敗，道具消失或數量減少，允許下一件 index 前移';
+                        lockedEnhanceDebug(upgraded ? 'SUCCESS' : 'FAILED_SHIFT', { batchId, oldIndex: found.index, newIndex: state.eligible[0]?.index ?? null, beforeEnchant: before, afterEnchant: upgraded?.enchant ?? null, eligibleBefore: beforeState.eligibleTotal, eligibleAfter: state.eligibleTotal, totalBefore: beforeState.total, totalAfter: state.total, cell: getEnhanceCellSnapshot(state.eligible[0]?.index ?? found.index) });
                         resolveEnhanceOperation(operation, status, detail);
-                        // 保留下拉選取的原始強化值；成功升級後下一輪仍只找原本選取的分組，避免誤追 +7、+8。
                         completed++; timer = setTimeout(runOne, 350); return;
                     }
-                    if (Date.now() - started > 8000) { lockedEnhanceDebug('TIMEOUT', { batchId, oldIndex: found.index, lock: {...lock}, exactTotal: state.exactTotal, higherTotal: state.higherTotal, item: getLiveInventoryItem(found.index), cell: getEnhanceCellSnapshot(found.index) }); resolveEnhanceOperation(operation, 'unknown', '等待同名道具數量或強化值更新逾時'); return stop('結果未知，已停止'); }
+                    if (Date.now() - started > 8000) { lockedEnhanceDebug('TIMEOUT', { batchId, oldIndex: found.index, lock: {...lock}, eligibleTotal: state.eligibleTotal, total: state.total, item: getLiveInventoryItem(found.index), cell: getEnhanceCellSnapshot(found.index) }); resolveEnhanceOperation(operation, 'unknown', '等待同名道具數量或強化值更新逾時'); return stop('結果未知，已停止'); }
                     timer = setTimeout(check, 300);
                 };
                 timer = setTimeout(check, 300);
@@ -2874,7 +2876,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             let modal = document.getElementById('lh5-enhance-modal');
             if (!modal) {
                 modal = document.createElement('div'); modal.id = 'lh5-enhance-modal';
-                modal.innerHTML = `<div class="lh5-enhance-card"><h3><span>🛡️ 批次安定值強化</span><button class="lh5-enhance-close" type="button">✕</button></h3><div style="color:#aaa;margin-bottom:8px">只掃描武器／防具分頁；執行前會先切換到對應分頁，再依該分頁 cell 的 data-i 送出安全強化。</div><label for="lh5-enhance-mode">強化模式</label><select id="lh5-enhance-mode"><option value="safe">安定值強化（enhanceSafeInv）</option><option value="normal">一般強化（enhanceInv）</option></select><label for="lh5-enhance-item">選擇武器／防具</label><select id="lh5-enhance-item"></select><label for="lh5-enhance-qty">批次強化數量</label><input id="lh5-enhance-qty" type="number" min="1" max="9999" value="1" step="1"><div style="display:flex;gap:6px;margin:6px 0"><label style="flex:1">Min 強化值<input id="lh5-enhance-min" type="number" min="0" max="99" value="0" step="1"></label><label style="flex:1">Max 強化值<input id="lh5-enhance-max" type="number" min="0" max="99" value="99" step="1"></label></div><div id="lh5-enhance-hint" style="color:#888;font-size:12px;margin-bottom:10px"></div><div class="lh5-enhance-actions"><button type="button" class="lh5-enhance-cancel">取消</button><button type="button" class="lh5-enhance-submit">開始強化</button></div></div>`;
+                modal.innerHTML = `<div class="lh5-enhance-card"><h3><span>🛡️ 批次安定值強化</span><button class="lh5-enhance-close" type="button">✕</button></h3><div style="color:#aaa;margin-bottom:8px">只掃描武器／防具分頁；執行前會先切換到對應分頁，再依該分頁 cell 的 data-i 送出安全強化。</div><label for="lh5-enhance-mode">強化模式</label><select id="lh5-enhance-mode"><option value="safe">安定值強化（enhanceSafeInv）</option><option value="normal">一般強化（enhanceInv）</option></select><label for="lh5-enhance-item">選擇武器／防具</label><select id="lh5-enhance-item"></select><label for="lh5-enhance-qty">批次強化數量</label><input id="lh5-enhance-qty" type="number" min="1" max="9999" value="1" step="1"><label for="lh5-enhance-stop">停止強化值</label><select id="lh5-enhance-stop">${Array.from({length: 12}, (_, i) => `<option value="${i + 1}">+${i + 1} 達到後停止</option>`).join('')}</select><div id="lh5-enhance-hint" style="color:#888;font-size:12px;margin-bottom:10px"></div><div class="lh5-enhance-actions"><button type="button" class="lh5-enhance-cancel">取消</button><button type="button" class="lh5-enhance-submit">開始強化</button></div></div>`;
                 document.body.appendChild(modal);
                 const close = () => modal.classList.remove('open');
                 modal.querySelector('.lh5-enhance-close').addEventListener('click', close);
@@ -2884,8 +2886,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                 const select = modal.querySelector('#lh5-enhance-item');
                 const qty = modal.querySelector('#lh5-enhance-qty');
                 const hint = modal.querySelector('#lh5-enhance-hint');
-                const minInput = modal.querySelector('#lh5-enhance-min');
-                const maxInput = modal.querySelector('#lh5-enhance-max');
+                const stopInput = modal.querySelector('#lh5-enhance-stop');
                 const refresh = () => {
                     const groups = getEnhanceGroups();
                     const old = select.value;
@@ -2895,20 +2896,19 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                     const max = current ? current.total : 1;
                     qty.max = max; qty.value = Math.min(Math.max(1, Number(qty.value) || 1), max);
                     const eventName = mode.value === 'normal' ? 'enhanceInv' : 'enhanceSafeInv';
-                    if (current && !minInput.dataset.userSet) minInput.value = Math.min(99, current.enchant + 1);
-                    if (current) { maxInput.value = current.cat === 'wpn' ? 9 : 7; maxInput.disabled = true; }
-                    hint.textContent = current ? `${mode.value === 'normal' ? '一般強化' : '安定值強化'}｜${current.cat === 'wpn' ? '武器' : '防具'}｜可用數量：${current.total}｜Min：${minInput.value}｜Max：${maxInput.value}｜實際 index：${current.entries.map(e => `${e.index}×${e.count}`).join(', ')}｜封包：${eventName}` : '請先進入角色並等待武器／防具背包資料載入';
+                    if (current) { const savedStop = getEnhanceStopValues()[current.cat]; stopInput.value = String(savedStop); }
+                    hint.textContent = current ? `${mode.value === 'normal' ? '一般強化' : '安定值強化'}｜${current.cat === 'wpn' ? '武器' : '防具'}｜可用數量：${current.total}｜停止值：+${stopInput.value}｜實際 index：${current.entries.map(e => `${e.index}×${e.count}`).join(', ')}｜封包：${eventName}` : '請先進入角色並等待武器／防具背包資料載入';
                 };
-                mode.addEventListener('change', refresh); select.addEventListener('change', () => { minInput.dataset.userSet = ''; maxInput.dataset.userSet = ''; refresh(); }); qty.addEventListener('input', refresh); minInput.addEventListener('input', () => { minInput.dataset.userSet = '1'; refresh(); });
+                mode.addEventListener('change', refresh); select.addEventListener('change', refresh); qty.addEventListener('input', refresh); stopInput.addEventListener('change', () => { const current = getEnhanceGroups().find(g => g.key === select.value); if (current) saveEnhanceStopValue(current.cat, Number(stopInput.value)); refresh(); });
                 modal.querySelector('.lh5-enhance-submit').addEventListener('click', () => {
                     const groups = getEnhanceGroups(); const current = groups.find(g => g.key === select.value);
                     if (!current) { alert('找不到武器或防具，請先打開背包並等待資料載入。'); return; }
                     const count = Math.max(1, Math.min(current.total, parseInt(qty.value, 10) || 1));
                     const eventName = mode.value === 'normal' ? 'enhanceInv' : 'enhanceSafeInv';
-                    const minEnchant = parseInt(minInput.value, 10);
-                    const maxEnchant = current.cat === 'wpn' ? 9 : 7;
-                    if (!Number.isInteger(minEnchant) || minEnchant < 0 || minEnchant > maxEnchant) { alert(`請輸入有效的 Min 強化值，武器 Max 固定為 9、防具 Max 固定為 7。`); return; }
-                    const lock = { cat: current.cat, name: current.name, enchant: current.enchant, startEnchant: current.enchant, minEnchant, maxEnchant };
+                    const stopEnchant = parseInt(stopInput.value, 10);
+                    if (!Number.isInteger(stopEnchant) || stopEnchant < 1 || stopEnchant > 12) { alert('請選擇有效的停止強化值（+1～+12）。'); return; }
+                    saveEnhanceStopValue(current.cat, stopEnchant);
+                    const lock = { cat: current.cat, name: current.name, currentEnchant: current.enchant, stopEnchant };
                     const execute = () => {
                         switchEnhanceTab(current.cat);
                         const indices = expandEnhanceIndices(current, count);
@@ -2917,7 +2917,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                         if (mode.value !== 'normal') { const batchId = 'enh-' + Date.now(); indices.forEach((index, order) => { const operation = queueEnhanceOperation(current, index, eventName, batchId); setTimeout(() => { operation.createdAt = Date.now(); operation.sent = true; craftEmit(eventName, index); console.log('[LH5] 🛡️ 安定值強化:', current.cat, current.name, 'index:', index, `${order + 1}/${indices.length}`); }, order * 1500); }); }
                         else { startLockedEnhance(lock, count, eventName, reason => console.log('[LH5] 🔒 鎖定名稱一般強化結束:', reason)); }
                     };
-                    if (mode.value === 'normal') showEnhanceConfirm(`裝備：${current.cat === 'wpn' ? '武器' : '防具'}｜${current.name} +${current.enchant}\n強化數量：${count}\n規則：低於 Min +${minEnchant} 才強化\nMax：+${maxEnchant}\n封包：enhanceInv(index)\n\n取消或關閉不會送出封包。`, execute);
+                    if (mode.value === 'normal') showEnhanceConfirm(`裝備：${current.cat === 'wpn' ? '武器' : '防具'}｜${current.name} +${current.enchant}\n強化數量：${count}\n規則：達到 +${stopEnchant} 後停止\n封包：enhanceInv(index)\n\n取消或關閉不會送出封包。`, execute);
                     else execute();
                 });
                 modal._lh5Refresh = refresh;
