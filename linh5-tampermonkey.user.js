@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.17
+// @version      3.0.18
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -3012,13 +3012,12 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
         function injectTools() {
             const body = document.getElementById('lh5-modal-body'); if (!body || document.getElementById(TOOLS_ID)) return;
             const tools = document.createElement('div'); tools.id = TOOLS_ID;
-            tools.innerHTML = `<div class="lh5-v20-tool-title">🧰 2.0 工具</div><div class="lh5-v20-tool-row"><button type="button" data-v20-action="export">匯出設定</button><button type="button" data-v20-action="import">匯入設定</button><button type="button" data-v20-action="dashboard">狀態面板</button></div><div class="lh5-v20-tool-row" style="margin-top:6px"><button type="button" data-v20-action="craft">🧵 批次製作</button><button type="button" data-v20-action="enhance">🛡️ 批次強化</button><button type="button" data-v20-action="enhance-locked">🔒 鎖定名稱強化</button><button type="button" data-v20-action="enhance-stats">📊 強化記錄</button></div><input id="lh5-v20-file" type="file" accept="application/json">`;
+            tools.innerHTML = `<div class="lh5-v20-tool-title">🧰 2.0 工具</div><div class="lh5-v20-tool-row"><button type="button" data-v20-action="export">匯出設定</button><button type="button" data-v20-action="import">匯入設定</button><button type="button" data-v20-action="dashboard">狀態面板</button></div><div class="lh5-v20-tool-row" style="margin-top:6px"><button type="button" data-v20-action="craft">🧵 批次製作</button><button type="button" data-v20-action="enhance">🛡️ 批次強化</button><button type="button" data-v20-action="enhance-stats">📊 強化記錄</button></div><input id="lh5-v20-file" type="file" accept="application/json">`;
             body.appendChild(tools);
             tools.querySelector('[data-v20-action="export"]').addEventListener('click', downloadProfile);
             tools.querySelector('[data-v20-action="dashboard"]').addEventListener('click', toggleDashboard);
             tools.querySelector('[data-v20-action="craft"]').addEventListener('click', openCraftModal);
             tools.querySelector('[data-v20-action="enhance"]').addEventListener('click', openEnhanceModal);
-            tools.querySelector('[data-v20-action="enhance-locked"]').addEventListener('click', openLockedEnhanceModal);
             tools.querySelector('[data-v20-action="enhance-stats"]').addEventListener('click', showEnhanceStatsModal);
             const file = tools.querySelector('#lh5-v20-file');
             tools.querySelector('[data-v20-action="import"]').addEventListener('click', () => file.click());
