@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.10
+// @version      3.0.11
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2797,6 +2797,42 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             for (const entry of group.entries) for (let i = 0; i < entry.count && result.length < count; i++) result.push(entry.index);
             return result;
         }
+        function findLockedEnhanceEntry(lock) {
+            const entries = getEnhanceInventory(lock.cat).filter(x => x.name === lock.name);
+            let exact = entries.find(x => x.enchant === lock.enchant);
+            if (!exact && lock.enchant > lock.startEnchant) exact = entries.filter(x => x.enchant >= lock.enchant).sort((a, b) => a.enchant - b.enchant || a.index - b.index)[0];
+            return exact || null;
+        }
+        function startLockedEnhance(lock, total, eventName, onDone) {
+            const batchId = 'enh-lock-' + Date.now(); let completed = 0; let stopped = false; let timer = null;
+            const stop = (reason) => { stopped = true; if (timer) clearTimeout(timer); console.warn('[LH5] 🔒 鎖定名稱強化停止:', reason); onDone?.(reason); };
+            const runOne = () => {
+                if (stopped || completed >= total) { if (!stopped) onDone?.('completed'); return; }
+                const found = findLockedEnhanceEntry(lock);
+                if (!found) return stop(`找不到「${lock.name} +${lock.enchant}」目前位置，為避免誤強化已停止`);
+                switchEnhanceTab(lock.cat);
+                const before = Number(found.item?.en || found.enchant || 0); const operation = queueEnhanceOperation({ name: lock.name, cat: lock.cat }, found.index, eventName, batchId);
+                operation.createdAt = Date.now(); operation.sent = true; operation.lockedName = lock.name; operation.lockedEnchant = lock.enchant;
+                craftEmit(eventName, found.index);
+                console.log('[LH5] 🔒 鎖定名稱強化:', lock.name, `+${before}`, 'index:', found.index, `${completed + 1}/${total}`);
+                const started = Date.now();
+                const check = () => {
+                    if (stopped) return;
+                    const current = findLockedEnhanceEntry({ ...lock, enchant: before, startEnchant: lock.startEnchant });
+                    const refreshed = getEnhanceInventory(lock.cat).filter(x => x.name === lock.name).sort((a, b) => a.enchant - b.enchant || a.index - b.index);
+                    const sameSlot = getEnhanceInventory(lock.cat).find(x => x.index === found.index && x.name === lock.name);
+                    const successEntry = sameSlot && sameSlot.enchant > before ? sameSlot : null;
+                    if (successEntry) {
+                        resolveEnhanceOperation(operation, 'success', `名稱重新定位，強化值 ${before} → ${successEntry.enchant}`); lock.enchant = successEntry.enchant; completed++; timer = setTimeout(runOne, 350); return;
+                    }
+                    if (!current && Date.now() - started > 2500) { resolveEnhanceOperation(operation, 'failed', '強化後找不到原名稱，可能失敗並消失'); return stop('目標道具消失，已停止'); }
+                    if (Date.now() - started > 8000) { resolveEnhanceOperation(operation, 'unknown', '等待名稱／強化值更新逾時'); return stop('結果未知，已停止'); }
+                    timer = setTimeout(check, 300);
+                };
+                timer = setTimeout(check, 300);
+            };
+            runOne();
+        }
         function openEnhanceModal() {
             let modal = document.getElementById('lh5-enhance-modal');
             if (!modal) {
@@ -2832,13 +2868,20 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                     if (!indices.length) { alert('找不到可強化的背包 index。'); return; }
                     close();
                     const eventName = mode.value === 'normal' ? 'enhanceInv' : 'enhanceSafeInv';
-                    const batchId = 'enh-' + Date.now(); indices.forEach((index, order) => { const operation = queueEnhanceOperation(current, index, eventName, batchId); setTimeout(() => { operation.createdAt = Date.now(); operation.sent = true; craftEmit(eventName, index); console.log('[LH5] 🛡️ ' + (eventName === 'enhanceInv' ? '一般強化' : '安定值強化') + ':', current.cat, current.name, 'index:', index, `${order + 1}/${indices.length}`); }, order * 350); });
+                    const lock = { cat: current.cat, name: current.name, enchant: current.enchant, startEnchant: current.enchant };
+                    if (mode.value !== 'normal') { const batchId = 'enh-' + Date.now(); const indices = expandEnhanceIndices(current, count); indices.forEach((index, order) => { const operation = queueEnhanceOperation(current, index, eventName, batchId); setTimeout(() => { operation.createdAt = Date.now(); operation.sent = true; craftEmit(eventName, index); console.log('[LH5] 🛡️ 安定值強化:', current.cat, current.name, 'index:', index, `${order + 1}/${indices.length}`); }, order * 350); }); }
+                    else { startLockedEnhance(lock, count, eventName, reason => console.log('[LH5] 🔒 鎖定名稱一般強化結束:', reason)); }
                 });
                 modal._lh5Refresh = refresh;
             }
             modal._lh5Refresh?.();
             modal.classList.add('open');
             modal.querySelector('#lh5-enhance-qty')?.focus();
+        }
+        function openLockedEnhanceModal() {
+            openEnhanceModal();
+            const mode = document.querySelector('#lh5-enhance-mode');
+            if (mode) { mode.value = 'normal'; mode.dispatchEvent(new Event('change')); }
         }
         const ENHANCE_LOG_KEY = 'lh5_enhance_log';
         const enhancePending = [];
@@ -2918,12 +2961,13 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
         function injectTools() {
             const body = document.getElementById('lh5-modal-body'); if (!body || document.getElementById(TOOLS_ID)) return;
             const tools = document.createElement('div'); tools.id = TOOLS_ID;
-            tools.innerHTML = `<div class="lh5-v20-tool-title">🧰 2.0 工具</div><div class="lh5-v20-tool-row"><button type="button" data-v20-action="export">匯出設定</button><button type="button" data-v20-action="import">匯入設定</button><button type="button" data-v20-action="dashboard">狀態面板</button></div><div class="lh5-v20-tool-row" style="margin-top:6px"><button type="button" data-v20-action="craft">🧵 批次製作</button><button type="button" data-v20-action="enhance">🛡️ 批次強化</button><button type="button" data-v20-action="enhance-stats">📊 強化記錄</button></div><input id="lh5-v20-file" type="file" accept="application/json">`;
+            tools.innerHTML = `<div class="lh5-v20-tool-title">🧰 2.0 工具</div><div class="lh5-v20-tool-row"><button type="button" data-v20-action="export">匯出設定</button><button type="button" data-v20-action="import">匯入設定</button><button type="button" data-v20-action="dashboard">狀態面板</button></div><div class="lh5-v20-tool-row" style="margin-top:6px"><button type="button" data-v20-action="craft">🧵 批次製作</button><button type="button" data-v20-action="enhance">🛡️ 批次強化</button><button type="button" data-v20-action="enhance-locked">🔒 鎖定名稱強化</button><button type="button" data-v20-action="enhance-stats">📊 強化記錄</button></div><input id="lh5-v20-file" type="file" accept="application/json">`;
             body.appendChild(tools);
             tools.querySelector('[data-v20-action="export"]').addEventListener('click', downloadProfile);
             tools.querySelector('[data-v20-action="dashboard"]').addEventListener('click', toggleDashboard);
             tools.querySelector('[data-v20-action="craft"]').addEventListener('click', openCraftModal);
             tools.querySelector('[data-v20-action="enhance"]').addEventListener('click', openEnhanceModal);
+            tools.querySelector('[data-v20-action="enhance-locked"]').addEventListener('click', openLockedEnhanceModal);
             tools.querySelector('[data-v20-action="enhance-stats"]').addEventListener('click', showEnhanceStatsModal);
             const file = tools.querySelector('#lh5-v20-file');
             tools.querySelector('[data-v20-action="import"]').addEventListener('click', () => file.click());
