@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.20
+// @version      3.0.21
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2859,19 +2859,16 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             runOne();
         }
         function showEnhanceConfirm(detail, onConfirm) {
-            let modal = document.getElementById('lh5-enhance-confirm-modal');
-            if (!modal) {
-                modal = document.createElement('div'); modal.id = 'lh5-enhance-confirm-modal'; modal.className = 'lh5-enhance-stats-modal';
-                modal.innerHTML = `<div class="lh5-enhance-stats-card"><h3><span>⚠️ 確認一般強化</span><button type="button" data-confirm-close>✕</button></h3><div data-confirm-detail style="white-space:pre-line;color:#ddd;line-height:1.7;margin:10px 0"></div><div class="lh5-enhance-stats-actions"><button type="button" data-confirm-cancel>取消</button><button type="button" data-confirm-start style="color:#fff;background:#9b3d3d">開始強化</button></div></div>`;
-                document.body.appendChild(modal);
-            }
-            const close = () => modal.classList.remove('open');
-            modal.querySelector('[data-confirm-detail]').textContent = detail;
-            modal.querySelector('[data-confirm-close]').onclick = close;
-            modal.querySelector('[data-confirm-cancel]').onclick = close;
-            modal.querySelector('[data-confirm-start]').onclick = () => { close(); onConfirm(); };
-            modal.onclick = e => { if (e.target === modal) close(); };
-            modal.classList.add('open');
+            const modal = document.getElementById('lh5-enhance-modal');
+            const card = modal?.querySelector('.lh5-enhance-card');
+            if (!modal || !card) return;
+            const previous = card.innerHTML;
+            const restore = () => { card.innerHTML = previous; modal.classList.remove('open'); openEnhanceModal(); };
+            card.innerHTML = `<h3><span>⚠️ 確認一般強化</span><button type="button" data-confirm-close>✕</button></h3><div data-confirm-detail style="white-space:pre-line;color:#ddd;line-height:1.7;margin:10px 0"></div><div class="lh5-enhance-actions"><button type="button" data-confirm-cancel>返回修改</button><button type="button" data-confirm-start style="color:#fff;background:#9b3d3d">確認開始強化</button></div>`;
+            card.querySelector('[data-confirm-detail]').textContent = detail;
+            card.querySelector('[data-confirm-close]').onclick = restore;
+            card.querySelector('[data-confirm-cancel]').onclick = restore;
+            card.querySelector('[data-confirm-start]').onclick = () => { modal.classList.remove('open'); onConfirm(); };
         }
         function openEnhanceModal() {
             let modal = document.getElementById('lh5-enhance-modal');
