@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.16
+// @version      3.0.17
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2858,6 +2858,21 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             };
             runOne();
         }
+        function showEnhanceConfirm(detail, onConfirm) {
+            let modal = document.getElementById('lh5-enhance-confirm-modal');
+            if (!modal) {
+                modal = document.createElement('div'); modal.id = 'lh5-enhance-confirm-modal'; modal.className = 'lh5-enhance-stats-modal';
+                modal.innerHTML = `<div class="lh5-enhance-stats-card"><h3><span>⚠️ 確認一般強化</span><button type="button" data-confirm-close>✕</button></h3><div data-confirm-detail style="white-space:pre-line;color:#ddd;line-height:1.7;margin:10px 0"></div><div class="lh5-enhance-stats-actions"><button type="button" data-confirm-cancel>取消</button><button type="button" data-confirm-start style="color:#fff;background:#9b3d3d">開始強化</button></div></div>`;
+                document.body.appendChild(modal);
+            }
+            const close = () => modal.classList.remove('open');
+            modal.querySelector('[data-confirm-detail]').textContent = detail;
+            modal.querySelector('[data-confirm-close]').onclick = close;
+            modal.querySelector('[data-confirm-cancel]').onclick = close;
+            modal.querySelector('[data-confirm-start]').onclick = () => { close(); onConfirm(); };
+            modal.onclick = e => { if (e.target === modal) close(); };
+            modal.classList.add('open');
+        }
         function openEnhanceModal() {
             let modal = document.getElementById('lh5-enhance-modal');
             if (!modal) {
@@ -2884,25 +2899,29 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                     qty.max = max; qty.value = Math.min(Math.max(1, Number(qty.value) || 1), max);
                     const eventName = mode.value === 'normal' ? 'enhanceInv' : 'enhanceSafeInv';
                     if (current && !minInput.dataset.userSet) minInput.value = Math.min(99, current.enchant + 1);
-                    if (current && !maxInput.dataset.userSet) maxInput.value = 99;
+                    if (current) { maxInput.value = current.cat === 'wpn' ? 9 : 7; maxInput.disabled = true; }
                     hint.textContent = current ? `${mode.value === 'normal' ? '一般強化' : '安定值強化'}｜${current.cat === 'wpn' ? '武器' : '防具'}｜可用數量：${current.total}｜Min：${minInput.value}｜Max：${maxInput.value}｜實際 index：${current.entries.map(e => `${e.index}×${e.count}`).join(', ')}｜封包：${eventName}` : '請先進入角色並等待武器／防具背包資料載入';
                 };
-                mode.addEventListener('change', refresh); select.addEventListener('change', () => { minInput.dataset.userSet = ''; maxInput.dataset.userSet = ''; refresh(); }); qty.addEventListener('input', refresh); minInput.addEventListener('input', () => { minInput.dataset.userSet = '1'; refresh(); }); maxInput.addEventListener('input', () => { maxInput.dataset.userSet = '1'; refresh(); });
+                mode.addEventListener('change', refresh); select.addEventListener('change', () => { minInput.dataset.userSet = ''; maxInput.dataset.userSet = ''; refresh(); }); qty.addEventListener('input', refresh); minInput.addEventListener('input', () => { minInput.dataset.userSet = '1'; refresh(); });
                 modal.querySelector('.lh5-enhance-submit').addEventListener('click', () => {
                     const groups = getEnhanceGroups(); const current = groups.find(g => g.key === select.value);
                     if (!current) { alert('找不到武器或防具，請先打開背包並等待資料載入。'); return; }
                     const count = Math.max(1, Math.min(current.total, parseInt(qty.value, 10) || 1));
-                    switchEnhanceTab(current.cat);
-                    const indices = expandEnhanceIndices(current, count);
-                    if (!indices.length) { alert('找不到可強化的背包 index。'); return; }
-                    close();
                     const eventName = mode.value === 'normal' ? 'enhanceInv' : 'enhanceSafeInv';
                     const minEnchant = parseInt(minInput.value, 10);
-                    const maxEnchant = parseInt(maxInput.value, 10);
-                    if (!Number.isInteger(minEnchant) || !Number.isInteger(maxEnchant) || minEnchant < 0 || maxEnchant < minEnchant) { alert('請輸入有效的 Min／Max 強化值，且 Min 不可大於 Max。'); return; }
+                    const maxEnchant = current.cat === 'wpn' ? 9 : 7;
+                    if (!Number.isInteger(minEnchant) || minEnchant < 0 || minEnchant > maxEnchant) { alert(`請輸入有效的 Min 強化值，武器 Max 固定為 9、防具 Max 固定為 7。`); return; }
                     const lock = { cat: current.cat, name: current.name, enchant: current.enchant, startEnchant: current.enchant, minEnchant, maxEnchant };
-                    if (mode.value !== 'normal') { const batchId = 'enh-' + Date.now(); const indices = expandEnhanceIndices(current, count); indices.forEach((index, order) => { const operation = queueEnhanceOperation(current, index, eventName, batchId); setTimeout(() => { operation.createdAt = Date.now(); operation.sent = true; craftEmit(eventName, index); console.log('[LH5] 🛡️ 安定值強化:', current.cat, current.name, 'index:', index, `${order + 1}/${indices.length}`); }, order * 350); }); }
-                    else { startLockedEnhance(lock, count, eventName, reason => console.log('[LH5] 🔒 鎖定名稱一般強化結束:', reason)); }
+                    const execute = () => {
+                        switchEnhanceTab(current.cat);
+                        const indices = expandEnhanceIndices(current, count);
+                        if (!indices.length) { alert('找不到可強化的背包 index。'); return; }
+                        close();
+                        if (mode.value !== 'normal') { const batchId = 'enh-' + Date.now(); indices.forEach((index, order) => { const operation = queueEnhanceOperation(current, index, eventName, batchId); setTimeout(() => { operation.createdAt = Date.now(); operation.sent = true; craftEmit(eventName, index); console.log('[LH5] 🛡️ 安定值強化:', current.cat, current.name, 'index:', index, `${order + 1}/${indices.length}`); }, order * 350); }); }
+                        else { startLockedEnhance(lock, count, eventName, reason => console.log('[LH5] 🔒 鎖定名稱一般強化結束:', reason)); }
+                    };
+                    if (mode.value === 'normal') showEnhanceConfirm(`裝備：${current.cat === 'wpn' ? '武器' : '防具'}｜${current.name} +${current.enchant}\n強化數量：${count}\n規則：低於 Min +${minEnchant} 才強化\nMax：+${maxEnchant}\n封包：enhanceInv(index)\n\n取消或關閉不會送出封包。`, execute);
+                    else execute();
                 });
                 modal._lh5Refresh = refresh;
             }
