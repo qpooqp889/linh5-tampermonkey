@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.27
+// @version      3.0.28
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2952,7 +2952,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             const statusColor = state.finished ? '#8ee28e' : '#c8a96e';
             const resultRows = state.results.slice(-8).reverse().map(item => `<div style="border-top:1px solid #333;padding:4px 0;color:${item.status === 'success' ? '#8ee28e' : item.status === 'failed' ? '#ff9b9b' : '#aaa'}">${item.status === 'success' ? '成功' : item.status === 'failed' ? (item.detail || '失敗') : '未知'}｜${item.name}｜index ${item.index}</div>`).join('');
             card.innerHTML = `<h3><span>🛡️ 批次強化進度</span><button type="button" data-progress-close>✕</button></h3><div data-progress-summary style="color:${statusColor};font-weight:700;margin:8px 0">${state.finished ? state.finishText : `${state.completed}/${state.total}（${pct}%）`}</div><div style="height:8px;background:#333;border-radius:5px;overflow:hidden;margin:8px 0 12px"><div style="height:100%;width:${pct}%;background:${state.finished ? '#55b96b' : '#c8a96e'};transition:width .25s"></div></div><div data-progress-current style="color:#bbb;font-size:12px;min-height:18px">${current}</div><div data-progress-results style="margin-top:10px;color:#ddd;font-size:12px;line-height:1.8"><span style="color:#8ee28e">成功 ${state.success}</span>｜<span style="color:#ff9b9b">失敗 ${state.failed}</span>｜<span style="color:#aaa">未知 ${state.unknown}</span><br>模式：${state.eventName === 'enhanceInv' ? '一般強化' : '安定值強化'}｜停止值：+${state.stopEnchant}<div style="max-height:150px;overflow:auto;margin-top:6px">${resultRows || '<span style="color:#777">等待第一筆結果...</span>'}</div></div><div class="lh5-enhance-actions">${cancelButton}<button type="button" data-progress-close>${state.finished ? '關閉' : '隱藏視窗'}</button></div>`;
-            card.querySelectorAll('[data-progress-close]').forEach(button => button.onclick = () => modal.classList.remove('open'));
+            card.querySelectorAll('[data-progress-close]').forEach(button => button.onclick = () => { if (state.finished) { modal.classList.remove('open'); enhanceProgressState = null; openEnhanceModal(); } else { modal.classList.remove('open'); } });
             card.querySelector('[data-progress-cancel]')?.addEventListener('click', () => { const cancel = state.cancel; if (typeof cancel === 'function') cancel(); enhanceProgressState = null; openEnhanceModal(); });
         }
         function beginEnhanceProgress(current, eventName, total, stopEnchant) {
