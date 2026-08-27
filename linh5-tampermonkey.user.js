@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.14
+// @version      3.0.16
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2826,6 +2826,8 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             const runOne = () => {
                 if (stopped || completed >= total) { if (!stopped) onDone?.('completed'); return; }
                 const beforeState = getLockedEnhanceState(lock);
+                if (lock.enchant >= lock.minEnchant && lock.enchant <= lock.maxEnchant) return stop(`下拉選取的 +${lock.enchant} 已在 Min +${lock.minEnchant}～Max +${lock.maxEnchant} 範圍，不再強化`);
+                if (lock.enchant > lock.maxEnchant) return stop(`下拉選取的 +${lock.enchant} 已超過 Max +${lock.maxEnchant}，不再強化`);
                 const found = beforeState.exact.slice().sort((a, b) => a.index - b.index)[0];
                 if (!found) return stop(`找不到「${lock.name} +${lock.enchant}」剩餘道具，已完成 ${completed}/${total}`);
                 lockedEnhanceDebug('FOUND', { batchId, cat: lock.cat, name: lock.name, lockedEnchant: lock.enchant, index: found.index, exactTotal: beforeState.exactTotal, higherTotal: beforeState.higherTotal, item: found.item, cell: getEnhanceCellSnapshot(found.index) });
@@ -2860,7 +2862,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             let modal = document.getElementById('lh5-enhance-modal');
             if (!modal) {
                 modal = document.createElement('div'); modal.id = 'lh5-enhance-modal';
-                modal.innerHTML = `<div class="lh5-enhance-card"><h3><span>🛡️ 批次安定值強化</span><button class="lh5-enhance-close" type="button">✕</button></h3><div style="color:#aaa;margin-bottom:8px">只掃描武器／防具分頁；執行前會先切換到對應分頁，再依該分頁 cell 的 data-i 送出安全強化。</div><label for="lh5-enhance-mode">強化模式</label><select id="lh5-enhance-mode"><option value="safe">安定值強化（enhanceSafeInv）</option><option value="normal">一般強化（enhanceInv）</option></select><label for="lh5-enhance-item">選擇武器／防具</label><select id="lh5-enhance-item"></select><label for="lh5-enhance-qty">批次強化數量</label><input id="lh5-enhance-qty" type="number" min="1" max="9999" value="1" step="1"><div id="lh5-enhance-hint" style="color:#888;font-size:12px;margin-bottom:10px"></div><div class="lh5-enhance-actions"><button type="button" class="lh5-enhance-cancel">取消</button><button type="button" class="lh5-enhance-submit">開始強化</button></div></div>`;
+                modal.innerHTML = `<div class="lh5-enhance-card"><h3><span>🛡️ 批次安定值強化</span><button class="lh5-enhance-close" type="button">✕</button></h3><div style="color:#aaa;margin-bottom:8px">只掃描武器／防具分頁；執行前會先切換到對應分頁，再依該分頁 cell 的 data-i 送出安全強化。</div><label for="lh5-enhance-mode">強化模式</label><select id="lh5-enhance-mode"><option value="safe">安定值強化（enhanceSafeInv）</option><option value="normal">一般強化（enhanceInv）</option></select><label for="lh5-enhance-item">選擇武器／防具</label><select id="lh5-enhance-item"></select><label for="lh5-enhance-qty">批次強化數量</label><input id="lh5-enhance-qty" type="number" min="1" max="9999" value="1" step="1"><div style="display:flex;gap:6px;margin:6px 0"><label style="flex:1">Min 強化值<input id="lh5-enhance-min" type="number" min="0" max="99" value="0" step="1"></label><label style="flex:1">Max 強化值<input id="lh5-enhance-max" type="number" min="0" max="99" value="99" step="1"></label></div><div id="lh5-enhance-hint" style="color:#888;font-size:12px;margin-bottom:10px"></div><div class="lh5-enhance-actions"><button type="button" class="lh5-enhance-cancel">取消</button><button type="button" class="lh5-enhance-submit">開始強化</button></div></div>`;
                 document.body.appendChild(modal);
                 const close = () => modal.classList.remove('open');
                 modal.querySelector('.lh5-enhance-close').addEventListener('click', close);
@@ -2870,6 +2872,8 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                 const select = modal.querySelector('#lh5-enhance-item');
                 const qty = modal.querySelector('#lh5-enhance-qty');
                 const hint = modal.querySelector('#lh5-enhance-hint');
+                const minInput = modal.querySelector('#lh5-enhance-min');
+                const maxInput = modal.querySelector('#lh5-enhance-max');
                 const refresh = () => {
                     const groups = getEnhanceGroups();
                     const old = select.value;
@@ -2879,9 +2883,11 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                     const max = current ? current.total : 1;
                     qty.max = max; qty.value = Math.min(Math.max(1, Number(qty.value) || 1), max);
                     const eventName = mode.value === 'normal' ? 'enhanceInv' : 'enhanceSafeInv';
-                    hint.textContent = current ? `${mode.value === 'normal' ? '一般強化' : '安定值強化'}｜${current.cat === 'wpn' ? '武器' : '防具'}｜可用數量：${current.total}｜實際 index：${current.entries.map(e => `${e.index}×${e.count}`).join(', ')}｜封包：${eventName}` : '請先進入角色並等待武器／防具背包資料載入';
+                    if (current && !minInput.dataset.userSet) minInput.value = Math.min(99, current.enchant + 1);
+                    if (current && !maxInput.dataset.userSet) maxInput.value = 99;
+                    hint.textContent = current ? `${mode.value === 'normal' ? '一般強化' : '安定值強化'}｜${current.cat === 'wpn' ? '武器' : '防具'}｜可用數量：${current.total}｜Min：${minInput.value}｜Max：${maxInput.value}｜實際 index：${current.entries.map(e => `${e.index}×${e.count}`).join(', ')}｜封包：${eventName}` : '請先進入角色並等待武器／防具背包資料載入';
                 };
-                mode.addEventListener('change', refresh); select.addEventListener('change', refresh); qty.addEventListener('input', refresh);
+                mode.addEventListener('change', refresh); select.addEventListener('change', () => { minInput.dataset.userSet = ''; maxInput.dataset.userSet = ''; refresh(); }); qty.addEventListener('input', refresh); minInput.addEventListener('input', () => { minInput.dataset.userSet = '1'; refresh(); }); maxInput.addEventListener('input', () => { maxInput.dataset.userSet = '1'; refresh(); });
                 modal.querySelector('.lh5-enhance-submit').addEventListener('click', () => {
                     const groups = getEnhanceGroups(); const current = groups.find(g => g.key === select.value);
                     if (!current) { alert('找不到武器或防具，請先打開背包並等待資料載入。'); return; }
@@ -2891,7 +2897,10 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                     if (!indices.length) { alert('找不到可強化的背包 index。'); return; }
                     close();
                     const eventName = mode.value === 'normal' ? 'enhanceInv' : 'enhanceSafeInv';
-                    const lock = { cat: current.cat, name: current.name, enchant: current.enchant, startEnchant: current.enchant };
+                    const minEnchant = parseInt(minInput.value, 10);
+                    const maxEnchant = parseInt(maxInput.value, 10);
+                    if (!Number.isInteger(minEnchant) || !Number.isInteger(maxEnchant) || minEnchant < 0 || maxEnchant < minEnchant) { alert('請輸入有效的 Min／Max 強化值，且 Min 不可大於 Max。'); return; }
+                    const lock = { cat: current.cat, name: current.name, enchant: current.enchant, startEnchant: current.enchant, minEnchant, maxEnchant };
                     if (mode.value !== 'normal') { const batchId = 'enh-' + Date.now(); const indices = expandEnhanceIndices(current, count); indices.forEach((index, order) => { const operation = queueEnhanceOperation(current, index, eventName, batchId); setTimeout(() => { operation.createdAt = Date.now(); operation.sent = true; craftEmit(eventName, index); console.log('[LH5] 🛡️ 安定值強化:', current.cat, current.name, 'index:', index, `${order + 1}/${indices.length}`); }, order * 350); }); }
                     else { startLockedEnhance(lock, count, eventName, reason => console.log('[LH5] 🔒 鎖定名稱一般強化結束:', reason)); }
                 });
