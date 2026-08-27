@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.4
+// @version      3.0.5
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2730,25 +2730,67 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             modal.classList.add('open');
             modal.querySelector('#lh5-craft-qty')?.focus();
                 }
-        function getEnhanceInventory() {
-            try {
-                const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
-                const inv = w.__lh5_inv;
-                if (!Array.isArray(inv)) return [];
-                const categories = new Set(['wpn', 'arm', 'armor', 'weapon', 'equipment']);
-                return inv.map((item, index) => ({ item, index })).filter(x => x.item && categories.has(String(x.item.cat || '').toLowerCase()) && x.item.n).map(x => ({ index: x.index, name: String(x.item.n), enchant: Number(x.item.en || 0), item: x.item }));
-            } catch (_) { return []; }
+        function getEnhanceTab(cat) {
+            const subtab = document.querySelector(`.subtab[data-c="${cat}"]`);
+            if (!subtab) return null;
+            let node = subtab.parentElement;
+            for (let level = 0; node && level < 5; level++, node = node.parentElement) {
+                const cells = [...node.querySelectorAll('.cell[data-i]')];
+                if (cells.length) return { cat, subtab, cells };
+            }
+            return { cat, subtab, cells: [] };
         }
-        function getEnhanceGroups() {
+        function getItemLabel(cell, invItem) {
+            const image = cell.querySelector('img');
+            const fromAlt = image?.alt?.trim();
+            const fromSrc = image?.getAttribute('src')?.split('/').pop()?.replace(/\.[^.]+$/, '') || '';
+            return fromAlt || fromSrc || invItem?.n || `index ${cell.dataset.i}`;
+        }
+        function getEnhanceInventory(catFilter = '') {
+            const result = [];
+            let inv = [];
+            try { const w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window; inv = Array.isArray(w.__lh5_inv) ? w.__lh5_inv : []; } catch (_) {}
+            const cats = catFilter ? [catFilter] : ['wpn', 'arm'];
+            cats.forEach(cat => {
+                const tab = getEnhanceTab(cat); if (!tab) return;
+                tab.cells.forEach(cell => {
+                    const index = Number(cell.dataset.i);
+                    if (!Number.isInteger(index) || index < 0) return;
+                    const item = inv[index] || {};
+                    if (item.cat && item.cat !== cat) return;
+                    const countText = cell.querySelector('.cnt')?.textContent?.replace(/,/g, '').trim();
+                    const count = Math.max(1, parseInt(countText, 10) || 1);
+                    const enchant = Number(item.en || 0);
+                    result.push({ cat, index, count, name: getItemLabel(cell, item), enchant, item });
+                });
+            });
+            return result;
+        }
+        function getEnhanceGroups(catFilter = '') {
             const map = new Map();
-            getEnhanceInventory().forEach(x => { const key = `${x.name}|${x.enchant}`; if (!map.has(key)) map.set(key, { key, name: x.name, enchant: x.enchant, indices: [] }); map.get(key).indices.push(x.index); });
-            return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant') || a.enchant - b.enchant);
+            getEnhanceInventory(catFilter).forEach(x => {
+                const key = `${x.cat}|${x.name}|${x.enchant}`;
+                if (!map.has(key)) map.set(key, { key, cat: x.cat, name: x.name, enchant: x.enchant, total: 0, entries: [] });
+                const group = map.get(key); group.total += x.count; group.entries.push({ index: x.index, count: x.count });
+            });
+            return [...map.values()].sort((a, b) => a.cat.localeCompare(b.cat) || a.name.localeCompare(b.name, 'zh-Hant') || a.enchant - b.enchant);
+        }
+        function switchEnhanceTab(cat) {
+            const tab = getEnhanceTab(cat);
+            if (!tab) return false;
+            if (!tab.subtab.classList.contains('active')) tab.subtab.click();
+            return true;
+        }
+        function expandEnhanceIndices(group, count) {
+            const result = [];
+            for (const entry of group.entries) for (let i = 0; i < entry.count && result.length < count; i++) result.push(entry.index);
+            return result;
         }
         function openEnhanceModal() {
             let modal = document.getElementById('lh5-enhance-modal');
             if (!modal) {
                 modal = document.createElement('div'); modal.id = 'lh5-enhance-modal';
-                modal.innerHTML = `<div class="lh5-enhance-card"><h3><span>🛡️ 批次安定值強化</span><button class="lh5-enhance-close" type="button">✕</button></h3><div style="color:#aaa;margin-bottom:8px">只處理目前背包中的武器／防具；每件會送出一次 enhanceSafeInv(index)。</div><label for="lh5-enhance-item">選擇道具</label><select id="lh5-enhance-item"></select><label for="lh5-enhance-qty">批次強化數量</label><input id="lh5-enhance-qty" type="number" min="1" max="9999" value="1" step="1"><div id="lh5-enhance-hint" style="color:#888;font-size:12px;margin-bottom:10px"></div><div class="lh5-enhance-actions"><button type="button" class="lh5-enhance-cancel">取消</button><button type="button" class="lh5-enhance-submit">開始強化</button></div></div>`;
+                modal.innerHTML = `<div class="lh5-enhance-card"><h3><span>🛡️ 批次安定值強化</span><button class="lh5-enhance-close" type="button">✕</button></h3><div style="color:#aaa;margin-bottom:8px">只掃描武器／防具分頁；執行前會先切換到對應分頁，再依該分頁 cell 的 data-i 送出安全強化。</div><label for="lh5-enhance-item">選擇武器／防具</label><select id="lh5-enhance-item"></select><label for="lh5-enhance-qty">批次強化數量</label><input id="lh5-enhance-qty" type="number" min="1" max="9999" value="1" step="1"><div id="lh5-enhance-hint" style="color:#888;font-size:12px;margin-bottom:10px"></div><div class="lh5-enhance-actions"><button type="button" class="lh5-enhance-cancel">取消</button><button type="button" class="lh5-enhance-submit">開始強化</button></div></div>`;
                 document.body.appendChild(modal);
                 const close = () => modal.classList.remove('open');
                 modal.querySelector('.lh5-enhance-close').addEventListener('click', close);
@@ -2760,25 +2802,26 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                 const refresh = () => {
                     const groups = getEnhanceGroups();
                     const old = select.value;
-                    select.innerHTML = groups.length ? groups.map(g => `<option value="${g.key.replace(/"/g, '&quot;')}">${g.name} ${g.enchant > 0 ? '+' + g.enchant + ' ' : ''}(持有 ${g.indices.length} 件，index: ${g.indices.join(',')})</option>`).join('') : '<option value="">尚未讀取到武器／防具</option>';
+                    select.innerHTML = groups.length ? groups.map(g => `<option value="${g.key.replace(/"/g, '&quot;')}">${g.cat === 'wpn' ? '武器' : '防具'}｜${g.name} ${g.enchant > 0 ? '+' + g.enchant + ' ' : ''}(數量 ${g.total}，index: ${g.entries.map(e => e.index).join(',')})</option>`).join('') : '<option value="">尚未讀取到武器／防具</option>';
                     if (groups.some(g => g.key === old)) select.value = old;
                     const current = groups.find(g => g.key === select.value);
-                    const max = current ? current.indices.length : 1;
+                    const max = current ? current.total : 1;
                     qty.max = max; qty.value = Math.min(Math.max(1, Number(qty.value) || 1), max);
-                    hint.textContent = current ? `目前可用 index：${current.indices.join(', ')}；最多可強化 ${max} 件` : '請先進入角色並等待背包資料載入';
+                    hint.textContent = current ? `${current.cat === 'wpn' ? '武器' : '防具'}｜可用數量：${current.total}｜實際 index：${current.entries.map(e => `${e.index}×${e.count}`).join(', ')}` : '請先進入角色並等待武器／防具背包資料載入';
                 };
                 select.addEventListener('change', refresh); qty.addEventListener('input', refresh);
                 modal.querySelector('.lh5-enhance-submit').addEventListener('click', () => {
                     const groups = getEnhanceGroups(); const current = groups.find(g => g.key === select.value);
-                    if (!current) { alert('找不到可強化的武器或防具，請先重新整理背包。'); return; }
-                    const count = Math.max(1, Math.min(current.indices.length, parseInt(qty.value, 10) || 1));
-                    const indices = current.indices.slice(0, count);
-                    indices.forEach((index, order) => setTimeout(() => { craftEmit('enhanceSafeInv', index); console.log('[LH5] 🛡️ 安定值強化:', current.name, 'index:', index, `${order + 1}/${count}`); }, order * 350));
+                    if (!current) { alert('找不到武器或防具，請先打開背包並等待資料載入。'); return; }
+                    const count = Math.max(1, Math.min(current.total, parseInt(qty.value, 10) || 1));
+                    switchEnhanceTab(current.cat);
+                    const indices = expandEnhanceIndices(current, count);
+                    if (!indices.length) { alert('找不到可強化的背包 index。'); return; }
                     close();
+                    indices.forEach((index, order) => setTimeout(() => { craftEmit('enhanceSafeInv', index); console.log('[LH5] 🛡️ 安定值強化:', current.cat, current.name, 'index:', index, `${order + 1}/${indices.length}`); }, order * 350));
                 });
                 modal._lh5Refresh = refresh;
             }
-            bindCraftItems();
             modal._lh5Refresh?.();
             modal.classList.add('open');
             modal.querySelector('#lh5-enhance-qty')?.focus();
