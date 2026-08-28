@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.44
+// @version      3.0.45
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2788,6 +2788,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                 tab.cells.forEach(cell => {
                     const index = Number(cell.dataset.i);
                     if (!Number.isInteger(index) || index < 0) return;
+                    if (cell.querySelector('.lockbadge')) return;
                     const item = inv[index] || {};
                     if (item.cat && item.cat !== cat) return;
                     const countText = cell.querySelector('.cnt')?.textContent?.replace(/,/g, '').trim();
