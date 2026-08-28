@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.35
+// @version      3.0.36
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2992,7 +2992,8 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
         }
         function saveEnhancePacketLog(data) { localStorage.setItem(ENHANCE_PACKET_LOG_KEY, JSON.stringify(data.slice(-200))); }
         function recordEnhanceReturnPacket(eventName, args, source) {
-            if (!enhancePending.length) return;
+            // 以批次進度狀態為主；toast 可能先完成 pending 移除，但返回封包仍需保留。
+            if (!enhanceProgressState && !enhancePending.length) return;
             const payload = args.length <= 1 ? (args[0] ?? '') : args;
             const text = packetText(payload);
             const fingerprint = `${eventName}|${text}`;
@@ -3000,7 +3001,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             if (fingerprint === lastEnhancePacketFingerprint && now - lastEnhancePacketAt < 100) return;
             lastEnhancePacketFingerprint = fingerprint; lastEnhancePacketAt = now;
             const data = getEnhancePacketLog();
-            data.push({ time: new Date().toLocaleString('zh-TW', { hour12: false }), event: String(eventName), source, payload: text, matched: /強化|獲得狀態|道具已破壞/.test(text) ? '可能是強化結果' : '' });
+            data.push({ time: new Date().toLocaleString('zh-TW', { hour12: false }), event: String(eventName), source, payload: text, matched: /強化|獲得狀態|道具已破壞/.test(text) ? '可能是強化結果' : '', batchId: enhanceProgressState?.batchId || enhancePending[0]?.batchId || '' });
             saveEnhancePacketLog(data);
             console.log('[LH5][ENHANCE-PACKET]', eventName, payload);
             renderEnhancePacketLog();
