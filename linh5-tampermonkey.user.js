@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.34
+// @version      3.0.35
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2396,10 +2396,11 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
 
             // socket.onAny (socket.io v3+)
             if (typeof socket.onAny === 'function') {
-                socket.onAny((ev, ...args) => {
-                    const len = args.length;
-                    console.log('[LH5] 📥 onAny:', ev, len === 0 ? '' : (len === 1 ? args[0] : args));
-                });
+                    socket.onAny((ev, ...args) => {
+                        const len = args.length;
+                        console.log('[LH5] 📥 onAny:', ev, len === 0 ? '' : (len === 1 ? args[0] : args));
+                        recordEnhanceReturnPacket(ev, args, 'onAny');
+                    });
                 console.log('[LH5] ✅ onAny 攔截啟動');
             }
 
@@ -2409,6 +2410,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                 socket.onevent = function(packet) {
                     if (packet && packet.data && packet.data.length >= 1) {
                         console.log('[LH5] 📥 pack:', packet.data[0], packet.data.length > 1 ? packet.data.slice(1) : '');
+                        recordEnhanceReturnPacket(packet.data[0], packet.data.slice(1), 'onevent');
                     }
                     return origOnevent(packet);
                 };
@@ -2426,6 +2428,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                                 const wrapped = function() {
                                     const args = Array.from(arguments);
                                     console.log('[LH5] 📥 cb:', ev, args.length === 0 ? '' : (args.length === 1 ? args[0] : args));
+                                    recordEnhanceReturnPacket(ev, args, 'callback');
                                     return fn.apply(this, arguments);
                                 };
                                 return wrapped;
@@ -2977,7 +2980,31 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             if (mode) { mode.value = 'normal'; mode.dispatchEvent(new Event('change')); }
         }
         const ENHANCE_LOG_KEY = 'lh5_enhance_log';
+        const ENHANCE_PACKET_LOG_KEY = 'lh5_enhance_packet_log';
         const enhancePending = [];
+        let lastEnhancePacketFingerprint = '';
+        let lastEnhancePacketAt = 0;
+        function packetText(value) {
+            try { return typeof value === 'string' ? value : JSON.stringify(value); } catch (_) { return String(value); }
+        }
+        function getEnhancePacketLog() {
+            try { const raw = localStorage.getItem(ENHANCE_PACKET_LOG_KEY); const data = raw ? JSON.parse(raw) : []; return Array.isArray(data) ? data : []; } catch (_) { return []; }
+        }
+        function saveEnhancePacketLog(data) { localStorage.setItem(ENHANCE_PACKET_LOG_KEY, JSON.stringify(data.slice(-200))); }
+        function recordEnhanceReturnPacket(eventName, args, source) {
+            if (!enhancePending.length) return;
+            const payload = args.length <= 1 ? (args[0] ?? '') : args;
+            const text = packetText(payload);
+            const fingerprint = `${eventName}|${text}`;
+            const now = Date.now();
+            if (fingerprint === lastEnhancePacketFingerprint && now - lastEnhancePacketAt < 100) return;
+            lastEnhancePacketFingerprint = fingerprint; lastEnhancePacketAt = now;
+            const data = getEnhancePacketLog();
+            data.push({ time: new Date().toLocaleString('zh-TW', { hour12: false }), event: String(eventName), source, payload: text, matched: /強化|獲得狀態|道具已破壞/.test(text) ? '可能是強化結果' : '' });
+            saveEnhancePacketLog(data);
+            console.log('[LH5][ENHANCE-PACKET]', eventName, payload);
+            renderEnhancePacketLog();
+        }
         let enhanceStatsTimer = null;
         let enhanceProgressState = null;
         function renderEnhanceProgress() {
@@ -3085,15 +3112,20 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             let modal = document.getElementById('lh5-enhance-stats-modal');
             if (!modal) {
                 modal = document.createElement('div'); modal.id = 'lh5-enhance-stats-modal'; modal.className = 'lh5-enhance-stats-modal';
-                modal.innerHTML = `<div class="lh5-enhance-stats-card"><h3><span>📊 強化記錄與成功率</span><button type="button" class="lh5-enhance-stats-close">✕</button></h3><div data-enhance-summary style="color:#c8a96e;font-size:12px;margin-bottom:8px"></div><div class="lh5-enhance-stats-table-wrap"><table><thead><tr><th>時間</th><th>道具</th><th>模式</th><th>index</th><th>強化前</th><th>強化後</th><th>結果</th></tr></thead><tbody data-enhance-rows></tbody></table></div><div class="lh5-enhance-stats-actions"><button type="button" data-enhance-export>匯出 CSV</button><button type="button" data-enhance-clear>清除記錄</button><button type="button" class="lh5-enhance-stats-close">關閉</button></div></div>`;
+                modal.innerHTML = `<div class="lh5-enhance-stats-card"><h3><span>📊 強化記錄與成功率</span><button type="button" class="lh5-enhance-stats-close">✕</button></h3><div data-enhance-summary style="color:#c8a96e;font-size:12px;margin-bottom:8px"></div><div style="margin:8px 0;color:#aaa;font-size:12px">📥 強化返回封包（只記錄強化等待期間收到的事件，最新資料在最下方）</div><pre data-enhance-packets style="max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-all;background:#0d0d18;border:1px solid #444;border-radius:6px;padding:8px;color:#b9d7ff;font:11px/1.5 monospace;margin:0 0 10px"></pre><div class="lh5-enhance-stats-table-wrap"><table><thead><tr><th>時間</th><th>道具</th><th>模式</th><th>index</th><th>強化前</th><th>強化後</th><th>結果</th></tr></thead><tbody data-enhance-rows></tbody></table></div><div class="lh5-enhance-stats-actions"><button type="button" data-enhance-export>匯出 CSV</button><button type="button" data-enhance-clear>清除記錄</button><button type="button" class="lh5-enhance-stats-close">關閉</button></div></div>`;
                 document.body.appendChild(modal);
                 const close = () => modal.classList.remove('open');
                 modal.querySelectorAll('.lh5-enhance-stats-close').forEach(b => b.addEventListener('click', close));
                 modal.addEventListener('click', e => { if (e.target === modal) close(); });
                 modal.querySelector('[data-enhance-export]').addEventListener('click', exportEnhanceCsv);
-                modal.querySelector('[data-enhance-clear]').addEventListener('click', () => { if (confirm('確定清除強化記錄？')) { localStorage.removeItem(ENHANCE_LOG_KEY); renderEnhanceStatsRows(); updateEnhanceStatsModal(); } });
+                modal.querySelector('[data-enhance-clear]').addEventListener('click', () => { if (confirm('確定清除強化記錄？')) { localStorage.removeItem(ENHANCE_LOG_KEY); localStorage.removeItem(ENHANCE_PACKET_LOG_KEY); renderEnhanceStatsRows(); renderEnhancePacketLog(); updateEnhanceStatsModal(); } });
             }
-            renderEnhanceStatsRows(); updateEnhanceStatsModal(); modal.classList.add('open');
+            renderEnhanceStatsRows(); renderEnhancePacketLog(); updateEnhanceStatsModal(); modal.classList.add('open');
+        }
+        function renderEnhancePacketLog() {
+            const box = document.querySelector('#lh5-enhance-stats-modal [data-enhance-packets]'); if (!box) return;
+            const rows = getEnhancePacketLog().slice(-50);
+            box.textContent = rows.length ? rows.map((r, i) => `[${i + 1}] ${r.time}｜${r.event}｜${r.source}${r.matched ? '｜' + r.matched : ''}\n${r.payload}`).join('\n\n') : '尚未捕捉到強化返回封包；開始強化後再開啟此面板查看。';
         }
         function renderEnhanceStatsRows() {
             const body = document.querySelector('#lh5-enhance-stats-modal [data-enhance-rows]'); if (!body) return;
