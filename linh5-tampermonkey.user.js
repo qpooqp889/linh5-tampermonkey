@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.30
+// @version      3.0.31
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -875,6 +875,12 @@
         let _busy = false;
         let _savedQuery = ''; // 保留輸入值，切分頁重建時 restore
 
+        // 原網站上架視窗是由遊戲自己管理；開啟期間不得重建、排序或觸碰任何表單狀態。
+        function isNativeListingOpen() {
+            const popup = document.getElementById('list-popup');
+            return !!(popup && !popup.classList.contains('hidden'));
+        }
+
         // ── 模糊匹配 ──
         function fuzzyMatchPrice(priceText, query) {
             const priceNum = parseInt(priceText.replace(/[^\d]/g, ''), 10);
@@ -903,7 +909,7 @@
 
         // ── 過濾（移除價格簡寫功能，網站已內建） ──
         function applyFilterAndFormat() {
-            if (_busy) return;
+            if (_busy || isNativeListingOpen()) return;
             const list = document.getElementById('trade-list');
             if (!list) return;
             const items = list.querySelectorAll(':scope > .shop-item');
@@ -944,6 +950,7 @@
 
         // ── 注入金錢搜尋 input + 排序下拉 ──
         function injectMoneySearch() {
+            if (isNativeListingOpen()) return false;
             const searchInput = document.getElementById('trade-search');
             if (!searchInput) return false;
             if (document.getElementById('lh5-trade-money')) return true;
@@ -999,7 +1006,7 @@
             if (list) {
                 if (listObserver) listObserver.disconnect();
                 listObserver = new MutationObserver(() => {
-                    if (_busy) return;
+                    if (_busy || isNativeListingOpen()) return;
                     if (!document.getElementById('lh5-trade-money')) {
                         moneyInput = null;
                         injectMoneySearch();
@@ -1011,6 +1018,7 @@
         }
 
         function tryStart() {
+            if (isNativeListingOpen()) return false;
             const ok = injectMoneySearch();
             setupObserver();
             // ★ 立刻過濾（處理 observer 綁定前已存在的項目）
@@ -2554,8 +2562,10 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
 
         }
 
-        // 交易所金錢搜尋：檢查是否需要重新注入
-        if (document.getElementById('trade-search') && !document.getElementById('lh5-trade-money')) {
+        // 交易所金錢搜尋：檢查是否需要重新注入；原生上架視窗開啟時完全跳過
+        if (!document.getElementById('list-popup')?.classList.contains('hidden') && document.getElementById('list-popup')) {
+            // 不觸碰原網站上架表單，尤其是 #lp-qty。
+        } else if (document.getElementById('trade-search') && !document.getElementById('lh5-trade-money')) {
             const s2 = loadSettings();
             if (s2.tradeMoneySearch) tradeMoneyFeature.tryStart();
         }
