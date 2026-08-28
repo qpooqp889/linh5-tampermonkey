@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.38
+// @version      3.0.39
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -3155,7 +3155,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
         }
         document.addEventListener('keydown', e => { if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'l') { e.preventDefault(); toggleDashboard(); } });
         if (!enhanceStatsTimer) enhanceStatsTimer = setInterval(pollEnhanceResults, 500);
-        setInterval(() => { injectTools(); updateDashboard(); renderEnhanceStatsRows(); }, 1000);
+        setInterval(() => { injectTools(); updateDashboard(); renderEnhanceStatsRows(); const enhanceModal = document.getElementById('lh5-enhance-modal'); if (enhanceModal?.classList.contains('open') && enhanceModal.querySelector('#lh5-enhance-item')) enhanceModal._lh5Refresh?.(); }, 1000);
         console.log('[LinH5] ✅ 2.0 擴充模組已啟動：Ctrl+Shift+L 開啟狀態面板');
     })();
 
