@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.45
+// @version      3.0.46
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -907,6 +907,17 @@
             return parseInt(priceText.replace(/[^\d]/g, ''), 10) || 0;
         }
 
+        // ── 解析商品數量並計算單價 ──
+        function parseQuantity(el) {
+            const text = el.querySelector('.si-n')?.textContent || '';
+            const match = text.match(/×\s*([\d,]+)/);
+            return match ? Math.max(1, parseInt(match[1].replace(/,/g, ''), 10) || 1) : 1;
+        }
+        function parseUnitPrice(el) {
+            const total = parsePrice(el);
+            return total / parseQuantity(el);
+        }
+
         // ── 過濾（移除價格簡寫功能，網站已內建） ──
         function applyFilterAndFormat() {
             if (_busy || isNativeListingOpen()) return;
@@ -933,13 +944,13 @@
                 }
             });
 
-            // ── 排序（使用 parsePrice 從 .dim 提取精確數字） ──
+            // ── 排序（依商品單價：總價 ÷ 顯示數量） ──
             const sortSelect = document.getElementById('lh5-trade-sort');
             if (sortSelect && sortSelect.value === 'priceAsc') {
                 if (listObserver) listObserver.disconnect();
                 const sorted = Array.from(list.children).filter(el => el.classList.contains('shop-item')).sort((a, b) => {
-                    const pa = parsePrice(a);
-                    const pb = parsePrice(b);
+                    const pa = parseUnitPrice(a);
+                    const pb = parseUnitPrice(b);
                     return pa - pb;
                 });
                 sorted.forEach(el => list.appendChild(el));
@@ -973,7 +984,7 @@
             optDefault.textContent = '預設';
             const optPriceAsc = document.createElement('option');
             optPriceAsc.value = 'priceAsc';
-            optPriceAsc.textContent = '價錢低→高';
+            optPriceAsc.textContent = '單價低→高';
             sortSelect.appendChild(optDefault);
             sortSelect.appendChild(optPriceAsc);
             wrap.appendChild(sortSelect);
