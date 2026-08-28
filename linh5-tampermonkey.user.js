@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.32
+// @version      3.0.33
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2932,7 +2932,9 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                     if (qty.value !== '' && Number.isFinite(qtyValue)) qty.value = String(Math.min(Math.max(1, Math.floor(qtyValue)), max));
                     const eventName = mode.value === 'normal' ? 'enhanceInv' : 'enhanceSafeInv';
                     if (current) { const savedStop = getEnhanceStopValues()[current.cat]; stopInput.value = String(savedStop); }
-                    hint.textContent = current ? `${mode.value === 'normal' ? '一般強化' : '安定值強化'}｜${current.cat === 'wpn' ? '武器' : '防具'}｜可用數量：${current.total}｜停止值：+${stopInput.value}｜實際 index：${current.entries.map(e => `${e.index}×${e.count}`).join(', ')}｜封包：${eventName}` : '請先進入角色並等待武器／防具背包資料載入';
+                    const hintIndices = current ? current.entries.slice(0, 5).map(e => `${e.index}×${e.count}`).join(', ') : '';
+                    const hintRest = current && current.entries.length > 5 ? `…（另 ${current.entries.length - 5} 個）` : '';
+                    hint.textContent = current ? `${mode.value === 'normal' ? '一般強化' : '安定值強化'}｜${current.cat === 'wpn' ? '武器' : '防具'}｜可用數量：${current.total}｜停止值：+${stopInput.value}｜實際 index：${hintIndices}${hintRest}｜封包：${eventName}` : '請先進入角色並等待武器／防具背包資料載入';
                 };
                 modal.querySelector('#lh5-enhance-qty-clear').addEventListener('click', () => { qty.value = ''; qty.focus(); });
                 modal.querySelector('#lh5-enhance-qty-max').addEventListener('click', () => { const current = getEnhanceGroups().find(g => g.key === select.value); if (current) { qty.value = String(current.total); qty.dispatchEvent(new Event('input', { bubbles: true })); qty.focus(); } });
