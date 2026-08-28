@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.46
+// @version      3.0.47
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -125,6 +125,27 @@
         { id: 'zone_39', name: '象牙塔6樓' },
         { id: 'zone_40', name: '象牙塔7樓' },
         { id: 'zone_41', name: '象牙塔8樓' },
+        // ── 傲慢之塔 ──
+        { id: 'pride_f1', name: '傲慢之塔 1F' },
+        { id: 'pride_f2', name: '傲慢之塔 2F' },
+        { id: 'pride_f3', name: '傲慢之塔 3F' },
+        { id: 'pride_f4', name: '傲慢之塔 4F' },
+        { id: 'pride_f5', name: '傲慢之塔 5F' },
+        { id: 'pride_f6', name: '傲慢之塔 6F' },
+        { id: 'pride_f7', name: '傲慢之塔 7F' },
+        { id: 'pride_f8', name: '傲慢之塔 8F' },
+        { id: 'pride_f9', name: '傲慢之塔 9F' },
+        { id: 'pride_f10', name: '傲慢之塔 10F' },
+        { id: 'pride_f11', name: '傲慢之塔 11F' },
+        { id: 'pride_f12', name: '傲慢之塔 12F' },
+        { id: 'pride_f13', name: '傲慢之塔 13F' },
+        { id: 'pride_f14', name: '傲慢之塔 14F' },
+        { id: 'pride_f15', name: '傲慢之塔 15F' },
+        { id: 'pride_f16', name: '傲慢之塔 16F' },
+        { id: 'pride_f17', name: '傲慢之塔 17F' },
+        { id: 'pride_f18', name: '傲慢之塔 18F' },
+        { id: 'pride_f19', name: '傲慢之塔 19F' },
+        { id: 'pride_f20', name: '傲慢之塔 20F' },
     ];
 
     function loadSettings() {
