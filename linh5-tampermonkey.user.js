@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.42
+// @version      3.0.43
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2876,9 +2876,13 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
                     const toastResult = toastChanged ? parseEnhanceToast(toastNow.text) : null;
                     if (toastResult && Date.now() - started > 250) {
                         lockedEnhanceDebug('TOAST', { batchId, oldIndex: found.index, result: toastResult, toast: toastNow });
+                        if (toastResult.status === 'stop') {
+                            resolveEnhanceOperation(operation, 'failed', toastResult.detail, toastResult);
+                            completed++;
+                            return stop(`缺少強化卷軸，已停止：${toastResult.detail}`);
+                        }
                         resolveEnhanceOperation(operation, toastResult.status, toastResult.detail, toastResult);
                         completed++;
-                        if (toastResult.status === 'failed') { timer = setTimeout(runOne, intervalMs); return; }
                         timer = setTimeout(runOne, intervalMs); return;
                     }
                     if (Date.now() - lastCheckLog > 1000) { lastCheckLog = Date.now(); lockedEnhanceDebug('CHECK', { batchId, oldIndex: found.index, lock: {...lock}, eligibleTotal: state.eligibleTotal, total: state.total, eligibleIndices: state.eligible.map(x => x.index), item: getLiveInventoryItem(found.index), cell: getEnhanceCellSnapshot(found.index) }); }
@@ -3059,6 +3063,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
         function parseEnhanceToast(text) {
             const value = String(text || '').replace(/\s+/g, ' ').trim();
             if (!value) return null;
+            if (/缺少可用的「對盔甲施法的卷軸」|缺少可用的「對武器施法的卷軸」/.test(value)) return { status: 'stop', detail: value };
             if (/強化失敗.{0,30}(道具已破壞|裝備已破壞|道具消失|裝備消失)/.test(value) || /道具已破壞|裝備已破壞/.test(value)) return { status: 'failed', detail: value };
             const match = value.match(/獲得狀態[：:]\s*(.+?)\s*\+(\d+)\s*$/);
             if (match) return { status: 'success', detail: match[0], resultName: match[1].trim(), enchant: Number(match[2]) };
