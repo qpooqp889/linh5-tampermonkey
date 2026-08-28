@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinH5 工具箱 - 世界王置頂 & 背包檢索
 // @namespace    https://linh5web.win/
-// @version      3.0.41
+// @version      3.0.42
 // @updateURL     https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @downloadURL   https://raw.githubusercontent.com/qpooqp889/linh5-tampermonkey/main/linh5-tampermonkey.user.js
 // @description  世界王存活自動置頂 + 星星置頂(Chrome localStorage) + 背包物品檢索（搜尋/強化篩選）+ 浮動設定齒輪
@@ -2612,7 +2612,9 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             #lh5-craft-modal .lh5-craft-cancel{background:#3a3a4e;color:#e0d5c1}
             #lh5-enhance-modal{position:fixed;inset:0;z-index:1000001;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center}
             #lh5-enhance-modal.open{display:flex}
-            #lh5-enhance-modal .lh5-enhance-card{width:min(400px,calc(100vw - 32px));background:#1a1a2e;border:1px solid #c8a96e;border-radius:12px;padding:18px;color:#e0d5c1;box-shadow:0 8px 40px rgba(0,0,0,.65);font:13px/1.5 system-ui,sans-serif}
+            #lh5-enhance-modal .lh5-enhance-card{width:min(400px,calc(100vw - 32px));max-height:calc(100vh - 24px);display:flex;flex-direction:column;overflow:hidden;background:#1a1a2e;border:1px solid #c8a96e;border-radius:12px;padding:18px;color:#e0d5c1;box-shadow:0 8px 40px rgba(0,0,0,.65);font:13px/1.5 system-ui,sans-serif}
+            #lh5-enhance-modal .lh5-enhance-scroll{min-height:0;flex:1;overflow-y:auto;padding-right:4px}
+            #lh5-enhance-modal .lh5-enhance-actions{flex:0 0 auto;padding-top:10px;margin-top:8px;background:#1a1a2e}
             #lh5-enhance-modal h3{margin:0 0 12px;color:#c8a96e;font-size:17px;display:flex;justify-content:space-between;align-items:center}
             #lh5-enhance-modal .lh5-enhance-close{border:0;background:none;color:#ff7777;cursor:pointer;font-size:18px}
             #lh5-enhance-modal select,#lh5-enhance-modal input{width:100%;box-sizing:border-box;margin:5px 0 10px;padding:8px;background:#0d0d18;border:1px solid #444;border-radius:6px;color:#fff;font-size:13px}
@@ -2912,7 +2914,7 @@ let _lastDelayLogMin = 0;       // 上次報剩餘時間的分鐘數（避免重
             let modal = document.getElementById('lh5-enhance-modal');
             if (!modal) {
                 modal = document.createElement('div'); modal.id = 'lh5-enhance-modal';
-                modal.innerHTML = `<div class="lh5-enhance-card"><h3><span>🛡️ 批次安定值強化</span><button class="lh5-enhance-close" type="button">✕</button></h3><div style="color:#aaa;margin-bottom:8px">只掃描武器／防具分頁；執行前會先切換到對應分頁，再依該分頁 cell 的 data-i 送出安全強化。</div><label for="lh5-enhance-mode">強化模式</label><select id="lh5-enhance-mode"><option value="safe">安定值強化（enhanceSafeInv）</option><option value="normal">一般強化（enhanceInv）</option></select><label for="lh5-enhance-filter">搜尋裝備</label><input id="lh5-enhance-filter" type="search" placeholder="輸入名稱或關鍵字篩選"><label for="lh5-enhance-item">選擇武器／防具</label><select id="lh5-enhance-item"></select><label for="lh5-enhance-qty">批次強化數量</label><div class="lh5-enhance-qty-row"><input id="lh5-enhance-qty" type="number" min="1" max="9999" value="1" step="1"><button type="button" id="lh5-enhance-qty-clear" title="清空數量">✕</button><button type="button" id="lh5-enhance-qty-max" title="填入最大可強化數量">MAX</button></div><label for="lh5-enhance-interval">封包間隔（一般／安定共用，毫秒）</label><input id="lh5-enhance-interval" type="number" min="100" max="10000" value="500" step="50"><label for="lh5-enhance-stop">停止強化值</label><select id="lh5-enhance-stop">${Array.from({length: 12}, (_, i) => `<option value="${i + 1}">+${i + 1} 達到後停止</option>`).join('')}</select><div id="lh5-enhance-hint" style="color:#888;font-size:12px;margin-bottom:10px"></div><div class="lh5-enhance-actions"><button type="button" class="lh5-enhance-cancel">取消</button><button type="button" class="lh5-enhance-submit">開始強化</button></div></div>`;
+                modal.innerHTML = `<div class="lh5-enhance-card"><h3><span>🛡️ 批次安定值強化</span><button class="lh5-enhance-close" type="button">✕</button></h3><div class="lh5-enhance-scroll"><div style="color:#aaa;margin-bottom:8px">只掃描武器／防具分頁；執行前會先切換到對應分頁，再依該分頁 cell 的 data-i 送出安全強化。</div><label for="lh5-enhance-mode">強化模式</label><select id="lh5-enhance-mode"><option value="safe">安定值強化（enhanceSafeInv）</option><option value="normal">一般強化（enhanceInv）</option></select><label for="lh5-enhance-filter">搜尋裝備</label><input id="lh5-enhance-filter" type="search" placeholder="輸入名稱或關鍵字篩選"><label for="lh5-enhance-item">選擇武器／防具</label><select id="lh5-enhance-item"></select><label for="lh5-enhance-qty">批次強化數量</label><div class="lh5-enhance-qty-row"><input id="lh5-enhance-qty" type="number" min="1" max="9999" value="1" step="1"><button type="button" id="lh5-enhance-qty-clear" title="清空數量">✕</button><button type="button" id="lh5-enhance-qty-max" title="填入最大可強化數量">MAX</button></div><label for="lh5-enhance-interval">封包間隔（一般／安定共用，毫秒）</label><input id="lh5-enhance-interval" type="number" min="100" max="10000" value="500" step="50"><label for="lh5-enhance-stop">停止強化值</label><select id="lh5-enhance-stop">${Array.from({length: 12}, (_, i) => `<option value="${i + 1}">+${i + 1} 達到後停止</option>`).join('')}</select><div id="lh5-enhance-hint" style="color:#888;font-size:12px;margin-bottom:10px"></div></div><div class="lh5-enhance-actions"><button type="button" class="lh5-enhance-cancel">取消</button><button type="button" class="lh5-enhance-submit">開始強化</button></div></div>`;
                 document.body.appendChild(modal);
                 const close = () => modal.classList.remove('open');
                 modal.querySelector('.lh5-enhance-close').addEventListener('click', close);
