@@ -1,4 +1,4 @@
-// ===== 天堂倖存者 第一版 =====
+// ===== 天堂倖存者 測試版 =====
 (function(){
 'use strict';
 const TICK=1000/24; let ZOOM=1.7;
